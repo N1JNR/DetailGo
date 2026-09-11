@@ -34,7 +34,8 @@
     "websocket-driver": "^0.7.5",
     "node-forge": "^1.4.0",
     "@tootallnate/once": "^2.0.1",
-    "qs": "^6.15.3",
+    "js-yaml": "^3.15.2",
+    "qs": "^6.16.0",
     "body-parser": "^1.20.6"
   }
 }
