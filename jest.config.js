@@ -4,7 +4,7 @@ module.exports = {
   // gifted-charts-core vem junto com react-native-gifted-charts e é publicado
   // em ESM, mas o nome não casa com o padrão react-native-*.
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|@react-navigation|react-native-.*|@react-native-firebase|@testing-library|gifted-charts-core)/)',
+    'node_modules/(?!(react-native|@react-native|@react-navigation|react-native-.*|@react-native-firebase|@testing-library|gifted-charts-core|decode-uri-component)/)',
   ],
   modulePathIgnorePatterns: ['<rootDir>/.claude/worktrees'],
   testPathIgnorePatterns: ['<rootDir>/.claude/worktrees', '<rootDir>/firestore-tests'],

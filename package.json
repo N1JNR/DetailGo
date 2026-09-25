@@ -100,6 +100,14 @@
     "fast-xml-parser": "^5.7.0",
     "sharp": "^0.35.3",
     "uuid": "^11.1.1",
-    "image-size": "^1.2.1"
+    "image-size": "^1.2.1",
+    "fast-uri": "^3.1.6",
+    "js-yaml": "^4.3.2",
+    "qs": "^6.16.0",
+    "decode-uri-component": "^0.5.0",
+    "joi": "^17.13.6",
+    "@xmldom/xmldom": "^0.9.12",
+    "browserslist": "^4.28.7",
+    "baseline-browser-mapping": "^2.11.0"
   }
 }
