@@ -35,6 +35,17 @@ describe('geo.utils', () => {
       expect(dist).toBeLessThan(3);
     });
 
+    // Dois pontos de Sao Paulo com delta parecido em lat e lng nao distinguem
+    // a ordem dos argumentos: trocar lat por lng cai na mesma faixa de 2 a 3 km.
+    // A 60 graus de latitude um grau de longitude vale metade de um grau de
+    // latitude, entao a troca dobra o resultado e o teste pega.
+    it('usa lat e lng na ordem certa', () => {
+      const dist = distanceKm({ lat: 60, lng: 0 }, { lat: 60, lng: 1 });
+
+      expect(dist).toBeGreaterThan(55);
+      expect(dist).toBeLessThan(56);
+    });
+
     it('retorna 0 para a mesma coordenada', () => {
       const coord = { lat: -23.55052, lng: -46.633308 };
       expect(distanceKm(coord, coord)).toBe(0);
@@ -46,6 +57,12 @@ describe('geo.utils', () => {
       expect(formatDistance(0.8)).toBe('800m');
       expect(formatDistance(0.05)).toBe('50m');
       expect(formatDistance(0)).toBe('0m');
+    });
+
+    // 80,5 metros: arredondar da 81, truncar da 80. Sem um valor com fracao os
+    // dois sao indistinguiveis.
+    it('arredonda os metros em vez de truncar', () => {
+      expect(formatDistance(0.0805)).toBe('81m');
     });
 
     it('formata distancias maiores ou iguais a 1km em km com uma casa decimal', () => {
