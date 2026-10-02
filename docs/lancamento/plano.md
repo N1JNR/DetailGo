@@ -54,6 +54,15 @@ assinado com chave de debug.
 
 ### 1.2 A armadilha encadeada do Maps
 
+> **Validado em 02/10/2026.** APK assinado com a keystore de upload instalado no
+> aparelho e mapa aberto: `MapsInitializer: preferredRenderer: LATEST` dentro do
+> processo do app, sem nenhuma `Authorization failure`. A troca de assinatura
+> não quebrou o mapa.
+>
+> Confirmado de quebra que instalar por cima falha com
+> `INSTALL_FAILED_UPDATE_INCOMPATIBLE` — quem já tem a versão antiga precisa
+> desinstalar antes.
+
 A chave do Google Maps está restrita à SHA-1 `21bfa7de...`, que é a da
 `debug.keystore`. Ao trocar a assinatura, o fingerprint muda e **o mapa para de
 funcionar em produção** se a nova SHA-1 não for cadastrada antes.
