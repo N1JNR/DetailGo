@@ -1,5 +1,9 @@
 import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import * as admin from 'firebase-admin';
+
+import { validarCoordenadas, validarEndereco } from './coordenadas';
+import { dentroDoLimite, extrairIp } from './limitePorIp';
 
 const googleGeocodingKey = defineSecret('GOOGLE_GEOCODING_KEY');
 
@@ -9,8 +13,7 @@ type AddressComponent = {
 };
 
 function extractComponents(components: AddressComponent[]) {
-  const get = (type: string) =>
-    components.find(c => c.types.includes(type))?.long_name ?? '';
+  const get = (type: string) => components.find(c => c.types.includes(type))?.long_name ?? '';
 
   const route = get('route');
   const neighborhood = get('sublocality_level_1') || get('neighborhood');
@@ -40,15 +43,26 @@ export const geocode = onRequest(
       return;
     }
 
-    const { address } = req.body as { address?: string };
-    if (!address?.trim()) {
-      res.status(400).json({ error: 'address é obrigatório' });
+    const validacao = validarEndereco(req.body);
+    if (!validacao.ok) {
+      res.status(400).json({ error: validacao.erro });
+      return;
+    }
+    const address = validacao.endereco;
+
+    // Só a tela de cadastro chama isto, antes de a conta existir — por isso não
+    // dá para exigir login. O teto por IP corta o abuso automatizado.
+    const veredito = await dentroDoLimite(admin.firestore(), extrairIp(req.headers), Date.now());
+    if (!veredito.permitido) {
+      res.status(veredito.status).json({ error: veredito.erro });
       return;
     }
 
     try {
       const key = googleGeocodingKey.value();
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&region=br&language=pt-BR&key=${key}`;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
+        address,
+      )}&region=br&language=pt-BR&key=${key}`;
       const response = await fetch(url);
       const data = await response.json();
 
@@ -78,9 +92,16 @@ export const reverseGeocode = onRequest(
       return;
     }
 
-    const { lat, lng } = req.body as { lat?: number; lng?: number };
-    if (lat == null || lng == null) {
-      res.status(400).json({ error: 'lat e lng são obrigatórios' });
+    const validacao = validarCoordenadas(req.body);
+    if (!validacao.ok) {
+      res.status(400).json({ error: validacao.erro });
+      return;
+    }
+    const { lat, lng } = validacao.coords;
+
+    const veredito = await dentroDoLimite(admin.firestore(), extrairIp(req.headers), Date.now());
+    if (!veredito.permitido) {
+      res.status(veredito.status).json({ error: veredito.erro });
       return;
     }
 

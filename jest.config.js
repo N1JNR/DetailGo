@@ -7,7 +7,15 @@ module.exports = {
     'node_modules/(?!(react-native|@react-native|@react-navigation|react-native-.*|@react-native-firebase|@testing-library|gifted-charts-core|decode-uri-component)/)',
   ],
   modulePathIgnorePatterns: ['<rootDir>/.claude/worktrees'],
-  testPathIgnorePatterns: ['<rootDir>/.claude/worktrees', '<rootDir>/firestore-tests'],
+  // As Cloud Functions têm Jest e node_modules próprios, e rodam no job
+  // "Testes das Cloud Functions". Sem ignorá-las aqui, os specs delas rodavam
+  // duas vezes — e qualquer um que importasse firebase-admin quebrava, porque
+  // essa dependência não existe no node_modules do app.
+  testPathIgnorePatterns: [
+    '<rootDir>/.claude/worktrees',
+    '<rootDir>/firestore-tests',
+    '<rootDir>/functions',
+  ],
   watchPathIgnorePatterns: ['<rootDir>/.claude/worktrees'],
   // Cobertura do projeto inteiro (exclui specs, tipos e barrels).
   collectCoverageFrom: [
