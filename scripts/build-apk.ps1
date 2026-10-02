@@ -5,6 +5,7 @@ param(
   [string]$VersionName,
   [int]$VersionCode,
   [switch]$Clean,
+  [switch]$Bundle,
   [switch]$NoDesktopCopy
 )
 
@@ -127,4 +128,46 @@ $apkInfo = Get-Item -LiteralPath $distApk
 $sizeMb = [math]::Round($apkInfo.Length / 1MB, 2)
 Write-Host ""
 Write-Host "Size: $sizeMb MB"
+
+# A Play Store exige AAB para apps novos; o APK continua servindo para instalar
+# direto no aparelho. O AAB sai da mesma build, entao gerar os dois juntos evita
+# publicar um bundle de codigo diferente do que foi testado na mao.
+if ($Bundle) {
+  if ($BuildType -ne "release") {
+    throw "AAB so faz sentido em release; rode com -BuildType release."
+  }
+
+  Push-Location $AndroidDir
+  try {
+    Write-Host ""
+    Write-Host "Generating AAB with Gradle task: bundleRelease"
+    Invoke-Gradle @("bundleRelease")
+  }
+  finally {
+    Pop-Location
+  }
+
+  $sourceAab = Join-Path $AndroidDir "app\build\outputs\bundle\release\app-release.aab"
+  if (!(Test-Path -LiteralPath $sourceAab)) {
+    throw "AAB not found at: $sourceAab"
+  }
+
+  # Mesma rede de protecao do APK: bundle anterior a esta execucao e de uma
+  # build passada e nao pode ser enviado como novo.
+  $aabWrittenAt = (Get-Item -LiteralPath $sourceAab).LastWriteTime
+  if ($aabWrittenAt -lt $startedAt) {
+    throw "AAB em $sourceAab e de $aabWrittenAt, anterior ao inicio desta build ($startedAt). Build nao gerou AAB novo."
+  }
+
+  $aabName = "DetailGo-v$versionName-code$versionCode-$stamp.aab"
+  $distAab = Join-Path $DistDir $aabName
+  Copy-Item -LiteralPath $sourceAab -Destination $distAab -Force
+
+  $aabMb = [math]::Round((Get-Item -LiteralPath $distAab).Length / 1MB, 2)
+  Write-Host ""
+  Write-Host "AAB generated (envie este na Play Store):"
+  Write-Host $distAab
+  Write-Host "Size: $aabMb MB"
+}
+
 Write-Host "Done."

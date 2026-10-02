@@ -47,13 +47,30 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        // Chave de UPLOAD da Play Store, não a de assinatura final: com o Play
+        // App Signing quem guarda a final é o Google. Perder a de upload é
+        // recuperável; perder a final não seria.
+        //
+        // Lida do secrets.properties, que não é rastreado. Sem ele o bloco fica
+        // nulo e o build de release falha dizendo o que falta — melhor falhar
+        // do que publicar assinado com a chave de debug, que a Play Store
+        // rejeita e que ainda quebraria o Maps por causa da SHA-1.
+        release {
+            def arquivo = secrets.getProperty("UPLOAD_STORE_FILE", "")
+            if (arquivo) {
+                storeFile file(arquivo)
+                storePassword secrets.getProperty("UPLOAD_STORE_PASSWORD", "")
+                keyAlias secrets.getProperty("UPLOAD_KEY_ALIAS", "")
+                keyPassword secrets.getProperty("UPLOAD_KEY_PASSWORD", "")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
