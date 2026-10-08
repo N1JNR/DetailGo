@@ -88,6 +88,54 @@ describe('useFirestoreCache', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
+  // Com uma chave só, invalidate('a') e clear() são indistinguíveis. É preciso
+  // uma segunda chave para provar que a invalidação é cirúrgica.
+  it('invalidate derruba só a chave pedida e preserva as outras', async () => {
+    const { result } = renderHook(() => useFirestoreCache<string>(5000));
+    const buscarA = jest.fn().mockResolvedValue('a');
+    const buscarB = jest.fn().mockResolvedValue('b');
+
+    await act(async () => {
+      await result.current.get('path-a', buscarA);
+      await result.current.get('path-b', buscarB);
+    });
+
+    act(() => {
+      result.current.invalidate('path-a');
+    });
+
+    await act(async () => {
+      await result.current.get('path-a', buscarA);
+      await result.current.get('path-b', buscarB);
+    });
+
+    expect(buscarA).toHaveBeenCalledTimes(2);
+    expect(buscarB).toHaveBeenCalledTimes(1);
+  });
+
+  // Todos os outros testes passam um cacheTime explícito, então o valor padrão
+  // — que é o usado em produção — nunca era exercido.
+  it('usa cinco minutos de cache quando nenhum tempo é informado', async () => {
+    const { result } = renderHook(() => useFirestoreCache<string>());
+    const buscar = jest.fn().mockResolvedValue('v');
+
+    await act(async () => {
+      await result.current.get('path', buscar);
+    });
+
+    jest.advanceTimersByTime(4 * 60 * 1000);
+    await act(async () => {
+      await result.current.get('path', buscar);
+    });
+    expect(buscar).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(2 * 60 * 1000);
+    await act(async () => {
+      await result.current.get('path', buscar);
+    });
+    expect(buscar).toHaveBeenCalledTimes(2);
+  });
+
   it('permite limpar todo o cache com clear()', async () => {
     const { result } = renderHook(() => useFirestoreCache<string>(5000));
     const fetcherA = jest.fn().mockResolvedValue('a');

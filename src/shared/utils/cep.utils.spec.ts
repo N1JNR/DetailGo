@@ -24,9 +24,29 @@ describe('cep.utils', () => {
       globalThis.fetch = originalFetch;
     });
 
-    it('retorna null se o CEP não possuir 8 dígitos', async () => {
+    // Afirmar só que o resultado é null não prova nada: sem a guarda de
+    // tamanho o fetch seria chamado, falharia, e o catch devolveria null do
+    // mesmo jeito. O que prova é a rede não ter sido tocada.
+    it('retorna null sem chamar a rede quando o CEP não tem 8 dígitos', async () => {
+      const fetchMock = jest.fn();
+      globalThis.fetch = fetchMock as unknown as typeof fetch;
+
       const result = await fetchCep('123');
+
       expect(result).toBeNull();
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    // Mesma armadilha: uma resposta com ok:false e sem json() faria o código
+    // quebrar no res.json() e cair no catch, devolvendo null por acidente. O
+    // corpo precisa ser válido para o teste medir a guarda, não o tropeço.
+    it('retorna null em erro http mesmo com corpo válido na resposta', async () => {
+      globalThis.fetch = jest.fn().mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({ cep: '01001-000', localidade: 'São Paulo', uf: 'SP' }),
+      } as unknown as Response);
+
+      await expect(fetchCep('01001-000')).resolves.toBeNull();
     });
 
     it('retorna dados do CEP quando a API do ViaCEP responde com sucesso', async () => {

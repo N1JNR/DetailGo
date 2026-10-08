@@ -100,12 +100,52 @@ describe('useShopServices', () => {
     expect(result.current.items[0]).toEqual({ id: 's1', name: 'Lavagem', active: true });
   });
 
+  // O padrão é mostrar tudo. Se activeOnly nascesse true, o dono abriria a
+  // gestão da loja e não veria os serviços que ele mesmo desativou — some sem
+  // explicação, e ele não teria como reativar.
+  it('mostra também os inativos quando activeOnly não é informado', async () => {
+    mockOnSnapshot.mockImplementation((queryRef, callback) => {
+      callback({
+        docs: [
+          { id: 's1', data: () => ({ name: 'Lavagem', active: true }) },
+          { id: 's2', data: () => ({ name: 'Polimento', active: false }) },
+        ],
+      });
+      return jest.fn();
+    });
+
+    mockNormalizeShopService.mockImplementation(docSnap => ({
+      id: docSnap.id,
+      name: docSnap.data().name,
+      active: docSnap.data().active,
+    }));
+
+    const { result } = renderHook(() => useShopServices({ shopId: 'shop-123' }));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.items).toHaveLength(2);
+  });
+
   it('chama ensureShopServices com o shopId correto quando ensureDefaults for true', async () => {
     mockOnSnapshot.mockImplementation(() => jest.fn());
 
     renderHook(() => useShopServices({ shopId: 'shop-xyz', ensureDefaults: true }));
 
     expect(mockEnsureShopServices).toHaveBeenCalledWith('shop-xyz');
+  });
+
+  // O padrão é não criar nada. Se ensureDefaults nascesse true, qualquer tela
+  // que apenas lê a lista semearia os serviços padrão na loja — inclusive
+  // ressuscitando os que o dono já tinha apagado.
+  it('não cria serviços padrão quando ensureDefaults não é informado', async () => {
+    mockOnSnapshot.mockImplementation(() => jest.fn());
+
+    renderHook(() => useShopServices({ shopId: 'shop-xyz' }));
+
+    expect(mockEnsureShopServices).not.toHaveBeenCalled();
   });
 
   it('define loading como false em caso de erro na chamada do snapshot ou ensureDefaults', async () => {
