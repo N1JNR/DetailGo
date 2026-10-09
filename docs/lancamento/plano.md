@@ -2,9 +2,10 @@
 
 Escopo: lançar Android e iOS, nessa ordem, com iOS por último.
 
-Estado em 01/10/2026: 917 testes verdes, cobertura 77,5% statements · 69,5%
+Estado em 09/10/2026: 926 testes verdes, cobertura 82,8% statements · 74,0%
 branches, TypeScript estrito e lint limpos. Pagamento Asaas validado ponta a
-ponta em sandbox. Esteira em ~1min35s na maioria das PRs.
+ponta em sandbox. Esteira em ~1min35s na maioria das PRs. `npm audit` sem
+nenhuma vulnerabilidade crítica, no app e nas Cloud Functions.
 
 Este arquivo é a fonte de verdade do progresso. Cada item fechado é marcado
 aqui, no mesmo PR que o resolve.
@@ -16,9 +17,10 @@ aqui, no mesmo PR que o resolve.
 Nove PRs do agente autônomo parados, com duplicação entre eles. Enquanto não
 forem mergeados, cada rodada semanal refaz o mesmo trabalho.
 
-- [ ] Mergear #146 (dependências, superset de #140 e #143) e fechar os outros dois
-- [ ] Mergear #141, #144 e #147 (testes, arquivos distintos entre si)
-- [ ] Mergear #148 (auditoria) e fechar #142 e #145
+- [x] Mergear #146 (dependências, superset de #140 e #143) e fechar os outros dois
+- [x] Mergear #141, #144 e #147 (testes, arquivos distintos entre si)
+- [x] Mergear #148 (auditoria) e fechar #142 e #145
+- [x] Rodada de 07/10: #153 e #154 (testes e auditoria) e #150 (dependências)
 
 ---
 
@@ -103,38 +105,50 @@ funcionar em produção** se a nova SHA-1 não for cadastrada antes.
 
 ### 2.2 Geocodificação exposta
 
-Achado MÉDIO da auditoria de 02/09, ainda aberto.
+Achado MÉDIO da auditoria de 02/09.
 
-- [ ] Exigir Firebase ID Token em `geocode` e `reverseGeocode`
-- [ ] Validar intervalo de lat/lng em `reverseGeocode` (achado BAIXO)
+- [x] Teto de 40 chamadas por IP por dia em `geocode` e `reverseGeocode`
+- [x] Validar intervalo de lat/lng em `reverseGeocode` (achado BAIXO)
 - [ ] Definir teto diário de cota do Geocoding no projeto
 - [ ] Apagar a chave `teste-descartavel` quando os testes terminarem
 
-> Hoje os dois endpoints são abertos. O teto por minuto é 3000 e **não há teto
-> diário**, então a exposição é de milhões de chamadas por dia na fatura do
-> `magic-auto`.
+> **Exigir login aqui não dá.** A primeira versão do plano dizia "exigir Firebase
+> ID Token", e isso quebraria o cadastro: as duas funções são chamadas na tela de
+> registro, antes de a conta existir. O que entrou foi um teto por IP, com o
+> endereço guardado só como hash do dia — um cadastro real faz menos de dez
+> chamadas, então 40 corta o abuso automatizado sem atrapalhar ninguém. Se o
+> contador falhar, a chamada passa: derrubar cadastro por causa de um soluço no
+> contador troca um problema de custo por um de receita.
 
 ---
 
 ## Bloco 3 — Risco técnico
 
-A média de 77% esconde onde estão os buracos. Ordem abaixo é a ordem do
-estrago, não a do tamanho.
+A média esconde onde estão os buracos. Ordem abaixo é a ordem do estrago, não
+a do tamanho.
 
-| Área            | Cobertura | Por que primeiro                                                       |
-| --------------- | --------- | ---------------------------------------------------------------------- |
-| `shops`         | 41%       | núcleo do multi-tenant; um vazamento entre lojas é o pior bug possível |
-| `subscription`  | 67%       | caminho do dinheiro                                                    |
-| `notifications` | 10%       | push é o que mais custa depurar depois de publicado                    |
-| `profile`       | 0%        | 229 statements sem nenhuma proteção                                    |
+Estado em 09/10/2026: 926 testes, 82,8% statements · 74,0% branches.
 
-- [ ] `shops` — isolamento entre lojas, com teste que prove que um dono não
-      alcança dado de outro
-- [ ] `subscription` — estados de assinatura, carência, cancelamento
+| Área            | Cobertura | Por que primeiro                                             |
+| --------------- | --------- | ------------------------------------------------------------ |
+| `profile`       | 0%        | 229 statements num só arquivo, sem nenhuma proteção          |
+| `notifications` | 33%       | push é o que mais custa depurar depois de publicado          |
+| `shops`         | 52%       | o que falta é contexto e tela — os serviços já estão em 100% |
+| `settings`      | 70%       | horário de funcionamento; erra e a agenda aceita fora dele   |
+
+- [x] `subscription` — estados de assinatura, carência, cancelamento. Serviços
+      e as duas telas em 100%, 12 de 12 mutantes mortos na tela de pagamento
+- [ ] `profile/screens/ProfileScreen.tsx` — 229 statements
 - [ ] `notifications` — registro de token, recebimento em foreground, navegação
       ao tocar
-- [ ] `profile`
+- [ ] `shops/context/ShopContext.tsx` — 45 statements; é ele que resolve em que
+      loja a sessão está, a fronteira multi-tenant no lado da interface
+- [ ] `settings/services/shopSettings.service.ts`
 - [ ] Decidir sobre Proguard/minify no release (hoje desligado)
+
+> **O isolamento entre lojas já tem prova.** `shops/services` e `shops/hooks`
+> estão em 100%, e é ali que vivem as consultas com `shopId`. O que falta em
+> `shops` são `ShopContext`, `ShopProfileScreen` e os ícones de serviço.
 
 ---
 
