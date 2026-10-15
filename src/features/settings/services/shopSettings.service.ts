@@ -71,8 +71,14 @@ function validateCapacity(capacity?: number): number | null {
 }
 
 function validateWorkingDays(days?: unknown): WeekDay[] {
-  if (!Array.isArray(days) || days.length === 0) return SHOP_SETTINGS_DEFAULTS.workingDays;
-  return days.filter((d): d is WeekDay => ALL_WEEK_DAYS.includes(d as WeekDay));
+  if (!Array.isArray(days)) return SHOP_SETTINGS_DEFAULTS.workingDays;
+
+  const validos = days.filter((d): d is WeekDay => ALL_WEEK_DAYS.includes(d as WeekDay));
+
+  // Lista que esvazia no filtro cai no padrão, igual à lista que já chegou
+  // vazia. Devolver [] aqui fazia a estética trabalhar zero dias e sumir do
+  // agendamento em silêncio — ninguém olha a configuração para descobrir isso.
+  return validos.length > 0 ? validos : SHOP_SETTINGS_DEFAULTS.workingDays;
 }
 
 function validateSlotStep(step?: number): number | null {
@@ -98,7 +104,12 @@ function validateAndMergeSettings(data: Partial<ShopSettings>): ShopSettings {
 function hasSettingsChanged(old: Partial<ShopSettings>, newSettings: ShopSettings): boolean {
   return (Object.keys(newSettings) as Array<keyof ShopSettings>).some(key => {
     if (key === 'workingDays') {
-      const a = (old.workingDays ?? []).slice().sort().join(',');
+      // `?? []` não basta: o campo vem do Firestore e pode ser qualquer coisa.
+      // Com uma string, `.slice()` funciona e `.sort()` estoura — e o erro era
+      // engolido pelo catch de fora, virando "falha ao carregar configurações".
+      // A loja ficava sem horário nenhum por causa de um campo torto.
+      const antigos = Array.isArray(old.workingDays) ? old.workingDays : [];
+      const a = antigos.slice().sort().join(',');
       const b = newSettings.workingDays.slice().sort().join(',');
       return a !== b;
     }
