@@ -170,8 +170,8 @@ a do tamanho.
 Estado em 15/10/2026: 1140 testes, 96,1% statements · 86,4% branches · 95,2%
 funções · 97,3% linhas. Piso do ratchet em 95/85/94/96.
 
-**Nenhuma área abaixo de 96%.** O bloco está fechado na parte de teste; resta
-só a decisão de Proguard/minify.
+**Nenhuma área abaixo de 96%. Bloco fechado** — inclusive a decisão de
+Proguard/minify, registrada no fim desta seção.
 
 | Área            | Início | Hoje |         |
 | --------------- | ------ | ---- | ------- |
@@ -200,12 +200,48 @@ só a decisão de Proguard/minify.
 - [x] `shops/utils/shopServiceIcons.ts` — 100%. Registrado no spec que `polish`
       e `default` apontam para o mesmo ícone, então nenhum teste separa os
       dois; dar ícone próprio ao polimento é decisão de produto
-- [ ] Decidir sobre Proguard/minify no release (hoje desligado)
+- [x] Decidir sobre Proguard/minify no release — **adiado conscientemente**,
+      ver abaixo
 
 > **O que sobra não é por área, é disperso.** Os maiores restos são 23
 > statements no `AdminManageScreen` e 6 no `ProfileScreen` — ramos defensivos e
 > caminhos que a interface não alcança. Perseguir os últimos pontos daqui para
 > a frente dá número, não segurança.
+
+### Decisão: Proguard/minify fica desligado no lançamento
+
+Decidido em 15/10/2026. `enableProguardInReleaseBuilds = false` em
+`android/app/build.gradle`, e o `proguard-rules.pro` está vazio — só
+comentários.
+
+**O que se ganha.** O R8 encolhe, ofusca e otimiza a camada **Java/Kotlin**. No
+React Native quase toda a lógica é JavaScript, que vai no bundle Hermes e o R8
+não toca — então ele só mexe no React Native em si, nos SDKs do Firebase e nas
+bibliotecas nativas. O APK tem 76,8 MB; a economia realista fica entre 5 e
+15 MB, e menos ainda no AAB, porque a Play já entrega só a ABI de cada
+aparelho. Ofuscação aqui vale pouco: não há segredo no código nativo — as
+chaves estão no Secret Manager e a lógica de negócio está no JavaScript.
+
+**O que se arrisca.** O R8 remove o que _parece_ não ser usado, e tudo que é
+alcançado por reflexão parece não ser usado. Firebase e React Native usam
+reflexão para registrar módulos e desserializar documentos. Sem regras de
+`keep` — e o arquivo está vazio — isso quebra.
+
+**Por que adiar e não só "fazer com cuidado".** O modo de falhar é compilar,
+passar no CI e quebrar **só na build de release, em runtime, numa tela
+específica**. E o CI roda `assembleDebug` (ci.yml:350), então não existe nada
+entre o R8 e a Play Store. É o mesmo padrão que já nos mordeu: o override do
+`image-size` para 2.x quebrou todas as builds de release e passou verde,
+porque a build de debug não empacota JavaScript.
+
+**Quando revisitar.** Depois da faixa de teste interno funcionando — aí existe
+um AAB real sendo instalado e exercitado antes de ir para produção, que é
+exatamente a rede que falta hoje. O caminho seguro então: ligar, gerar o AAB,
+instalar no aparelho e abrir **todas** as telas na mão. Mapa, agendamento,
+pagamento, relatórios, perfil e notificações — toda tela que usa Firebase ou
+biblioteca nativa é candidata a quebrar.
+
+**Custo de adiar:** um APK maior do que precisava. Não bloqueia lançamento.
 
 > **Cobertura alta não é teste bom.** O `ProfileScreen` chegou a 95% de linhas
 > com 5 mutantes vivos: validava o nome mas não o sobrenome, aceitava telefone
