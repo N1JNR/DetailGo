@@ -50,7 +50,9 @@ export default function SubscriptionScreen() {
       const link = await createCheckoutLink(shop.id, metodo);
       await Linking.openURL(link);
     } catch (e: any) {
-      showError(e?.message ?? 'N\u00e3o foi poss\u00edvel iniciar o pagamento. Tente novamente.');
+      // `||` e nao `??`: mensagem vazia e tao inutil quanto ausente, e com `??`
+      // o dono levava um aviso em branco na tela de pagamento.
+      showError(e?.message || 'N\u00e3o foi poss\u00edvel iniciar o pagamento. Tente novamente.');
     } finally {
       setCarregando(null);
     }
@@ -77,7 +79,12 @@ export default function SubscriptionScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.brand}>DETAILGO</Text>
-          <TouchableOpacity onPress={signOut} style={styles.iconButton} activeOpacity={0.75}>
+          <TouchableOpacity
+            testID="sair"
+            onPress={signOut}
+            style={styles.iconButton}
+            activeOpacity={0.75}
+          >
             <LogOut size={20} color={D.ink} strokeWidth={2.5} />
           </TouchableOpacity>
         </View>
