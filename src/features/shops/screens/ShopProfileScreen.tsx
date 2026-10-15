@@ -93,7 +93,7 @@ export default function ShopProfileScreen() {
       <StatusBar barStyle={isLight ? 'dark-content' : 'light-content'} backgroundColor={D.bg} />
       <SafeAreaView style={styles.safe} edges={['top', 'left', 'right']}>
         <View style={styles.header}>
-          <Pressable style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Pressable testID="voltar" style={styles.backBtn} onPress={() => navigation.goBack()}>
             <ArrowLeft size={20} color={D.ink} />
           </Pressable>
           <Text style={styles.headerTitle} numberOfLines={1}>

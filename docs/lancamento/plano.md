@@ -2,8 +2,8 @@
 
 Escopo: lançar Android e iOS, nessa ordem, com iOS por último.
 
-Estado em 15/10/2026: 1033 testes do app, 122 das Cloud Functions e 60 das
-regras do Firestore no emulador. Cobertura 93,8% statements · 83,2% branches.
+Estado em 15/10/2026: 1140 testes do app, 122 das Cloud Functions e 60 das
+regras do Firestore no emulador. Cobertura 96,1% statements · 86,4% branches.
 TypeScript estrito e lint limpos. `npm audit` sem nenhuma crítica nas duas
 pontas. Pagamento Asaas validado ponta a ponta em sandbox. Esteira em ~1min35s
 na maioria das PRs.
@@ -167,16 +167,19 @@ Achado MÉDIO da auditoria de 02/09.
 A média esconde onde estão os buracos. Ordem abaixo é a ordem do estrago, não
 a do tamanho.
 
-Estado em 15/10/2026: 1073 testes, 94,2% statements · 83,6% branches · 93,6%
-funções · 95,5% linhas. Piso do ratchet em 93/82/92/94.
+Estado em 15/10/2026: 1140 testes, 96,1% statements · 86,4% branches · 95,2%
+funções · 97,3% linhas. Piso do ratchet em 95/85/94/96.
 
-| Área            | Início | Hoje |                     |
-| --------------- | ------ | ---- | ------------------- |
-| `subscription`  | 67%    | 99%  | fechado             |
-| `profile`       | 0%     | 97%  | fechado             |
-| `notifications` | 10%    | 92%  | fechado             |
-| `settings`      | 70%    | 100% | fechado             |
-| `shops`         | 41%    | 74%  | falta tela e ícones |
+**Nenhuma área abaixo de 96%.** O bloco está fechado na parte de teste; resta
+só a decisão de Proguard/minify.
+
+| Área            | Início | Hoje |         |
+| --------------- | ------ | ---- | ------- |
+| `profile`       | 0%     | 97%  | fechado |
+| `notifications` | 10%    | 98%  | fechado |
+| `shops`         | 41%    | 99%  | fechado |
+| `subscription`  | 67%    | 99%  | fechado |
+| `settings`      | 70%    | 100% | fechado |
 
 - [x] `subscription` — estados de assinatura, carência, cancelamento. Serviços
       e as duas telas em 100%, 12 de 12 mutantes mortos na tela de pagamento
@@ -190,12 +193,19 @@ funções · 95,5% linhas. Piso do ratchet em 93/82/92/94.
       métricas, 44 casos, 17 de 17 mutantes mortos. Achou dois defeitos: lista
       de dias só com lixo virava zero dias de trabalho, e `workingDays` com
       tipo torto derrubava a leitura inteira das configurações
-- [ ] `notifications/components/NotificationsScreenView.tsx` — 11 statements
-- [ ] `shops/screens/ShopProfileScreen.tsx` — 42 statements; o maior que resta,
-      mas é edição de perfil da loja: erro ali é visível e o dono desfaz
-- [ ] `shops/utils/shopServiceIcons.ts` — 15 statements de mapeamento de ícone.
-      Cobrir dá número, não segurança — por isso é o último
+- [x] `notifications/components/NotificationsScreenView.tsx` — as faixas de
+      tempo relativo, com teste nas duas bordas de cada uma (59min/60min,
+      23h/24h, 6d/7d)
+- [x] `shops/screens/ShopProfileScreen.tsx` — 0% para 98%, 23 casos
+- [x] `shops/utils/shopServiceIcons.ts` — 100%. Registrado no spec que `polish`
+      e `default` apontam para o mesmo ícone, então nenhum teste separa os
+      dois; dar ícone próprio ao polimento é decisão de produto
 - [ ] Decidir sobre Proguard/minify no release (hoje desligado)
+
+> **O que sobra não é por área, é disperso.** Os maiores restos são 23
+> statements no `AdminManageScreen` e 6 no `ProfileScreen` — ramos defensivos e
+> caminhos que a interface não alcança. Perseguir os últimos pontos daqui para
+> a frente dá número, não segurança.
 
 > **Cobertura alta não é teste bom.** O `ProfileScreen` chegou a 95% de linhas
 > com 5 mutantes vivos: validava o nome mas não o sobrenome, aceitava telefone

@@ -76,6 +76,7 @@ export default function NotificationsScreenView({
         {/* ── Header ── */}
         <View style={styles.header}>
           <TouchableOpacity
+            testID="voltar"
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
             activeOpacity={0.7}
