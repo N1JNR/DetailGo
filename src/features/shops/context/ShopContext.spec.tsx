@@ -44,16 +44,85 @@ describe('ShopContext', () => {
   });
 
   describe('ShopProvider', () => {
-    it('reseta os stores quando o usuário não estiver autenticado (user nulo)', () => {
+    // A loja anterior precisa estar NO store antes de montar. Sem semear, o
+    // teste afirma que um store já vazio está vazio, e passa igual se o reset
+    // sumir — que é o vazamento entre lojas, o pior bug possível aqui.
+    it('limpa a loja anterior quando o usuário não está autenticado', () => {
+      act(() => {
+        useShopStore.getState().setUserSnapshot({ shopId: 'shop-anterior', userRole: 'owner' });
+        useShopStore
+          .getState()
+          .setShop({ id: 'shop-anterior', name: 'Estética do dono anterior' } as ShopDoc);
+      });
+      expect(useShopStore.getState().shopId).toBe('shop-anterior');
+
       render(
         <ShopProvider>
           <Text>Filho</Text>
         </ShopProvider>,
       );
 
-      expect(mockMeStoreState.reset).toHaveBeenCalled();
       expect(useShopStore.getState().shopId).toBeNull();
-      expect(mockOnSnapshot).not.toHaveBeenCalled();
+      expect(useShopStore.getState().shop).toBeNull();
+      expect(useShopStore.getState().userRole).toBeNull();
+      expect(mockMeStoreState.reset).toHaveBeenCalled();
+
+      // Sem usuário, nenhum listener de users/{uid} é aberto.
+      const caminhos = mockOnSnapshot.mock.calls.map(([caminho]) => String(caminho));
+      expect(caminhos.filter(c => c.startsWith('users/'))).toHaveLength(0);
+
+      // O listener de shops/{shopId} chega a abrir por um ciclo, porque os dois
+      // efeitos rodam na mesma montagem e o segundo ainda enxerga o shopId
+      // antigo. O reset do primeiro derruba em seguida — o que importa é que o
+      // store termine limpo, e as regras do Firestore recusam a leitura de quem
+      // acabou de sair.
+      expect(useShopStore.getState().shop).toBeNull();
+    });
+
+    it('cancela o listener do usuário ao desmontar', () => {
+      mockUseAuth.mockReturnValue({ user: { uid: 'user-100' } });
+      const cancelar = jest.fn();
+      mockOnSnapshot.mockReturnValue(cancelar);
+
+      const { unmount } = render(
+        <ShopProvider>
+          <Text>Filho</Text>
+        </ShopProvider>,
+      );
+      unmount();
+
+      expect(cancelar).toHaveBeenCalled();
+    });
+
+    // Trocar de loja sem cancelar o listener anterior deixa a loja antiga
+    // continuar empurrando snapshots para dentro do store.
+    it('cancela o listener da loja anterior ao trocar de loja', () => {
+      mockUseAuth.mockReturnValue({ user: { uid: 'user-100' } });
+      const cancelarPorCaminho: Record<string, jest.Mock> = {};
+      let userSnapshotCallback: ((snap: unknown) => void) | undefined;
+
+      mockOnSnapshot.mockImplementation((path: string, cb: (snap: unknown) => void) => {
+        if (path === 'users/user-100') userSnapshotCallback = cb;
+        const cancelar = jest.fn();
+        cancelarPorCaminho[path] = cancelar;
+        return cancelar;
+      });
+
+      render(
+        <ShopProvider>
+          <Text>Filho</Text>
+        </ShopProvider>,
+      );
+
+      act(() => {
+        userSnapshotCallback!({ data: () => ({ shopId: 'shop-a', role: 'owner' }) });
+      });
+      act(() => {
+        userSnapshotCallback!({ data: () => ({ shopId: 'shop-b', role: 'owner' }) });
+      });
+
+      expect(cancelarPorCaminho['shops/shop-a']).toHaveBeenCalled();
+      expect(cancelarPorCaminho['shops/shop-b']).not.toHaveBeenCalled();
     });
 
     it('assina o documento users/{uid} no Firestore ao autenticar', () => {
@@ -262,6 +331,22 @@ describe('ShopContext', () => {
       expect(result.current.userRole).toBe('owner');
       expect(result.current.loading).toBe(false);
       expect(result.current.isSubscriptionActive).toBe(true);
+    });
+
+    // Com os dois iguais, `||` e `&&` dão o mesmo resultado e a condição pode
+    // trocar sem ninguém notar. Só um de cada vez separa as duas.
+    it.each([
+      ['o usuário', true, false],
+      ['a loja', false, true],
+    ])('segue carregando enquanto %s não respondeu', (_quem, carregandoUser, carregandoShop) => {
+      act(() => {
+        useShopStore.getState().setLoadingUser(carregandoUser);
+        useShopStore.getState().setLoadingShop(carregandoShop);
+      });
+
+      const { result } = renderHook(() => useShop());
+
+      expect(result.current.loading).toBe(true);
     });
   });
 });
