@@ -99,6 +99,39 @@ funcionar em produção** se a nova SHA-1 não for cadastrada antes.
 
 ## Bloco 2 — Dinheiro e segurança
 
+### 2.0 Isolamento entre estéticas
+
+Revisão manual das Cloud Functions inteiras em 15/10, depois que a revisão por
+diff voltou vazia — ela só olha o que mudou, e estas três eram de desenho.
+
+- [x] `asaasSubscriptionId` fora do documento gravável pelo cliente
+- [x] `shops/{shopId}` deixa de ser legível sem login
+- [x] Campos que decidem acesso pago travados contra escrita do dono
+- [x] `shopId` validado antes de virar caminho de documento
+
+> **O que estava aberto.** A função de cancelamento conferia que o _documento_
+> era de quem chamou, e então usava o `asaasSubscriptionId` de dentro dele — um
+> campo que o dono podia escrever. Como `shops` era de leitura pública, dava
+> para ler o id da vítima, gravar no próprio documento e **cancelar a assinatura
+> dela**. Junto disso, `subscriptionStatus` e `activeUntil` também eram
+> graváveis: um `update` dava plano pago vitalício, e o `trialEndsAt` não tinha
+> teto no cadastro.
+>
+> Provar que o documento é seu não prova que o conteúdo dele é seu. O vínculo
+> com o Asaas passou para `shopBilling/{shopId}`, que as regras fecham dos dois
+> lados — só o Admin SDK escreve.
+>
+> **Migração:** estéticas que assinaram antes desta mudança têm o id no
+> documento antigo e vão aparecer sem assinatura até o próximo pagamento
+> confirmado recriar o vínculo. Em sandbox isso não custa nada; se houvesse
+> conta real, seria preciso copiar o campo antes de publicar.
+
+> **O paywall continua sendo validado no cliente.** As regras liberam escrita
+> por `isShopOwner`, nunca por assinatura — então quem mexer na API alcança a
+> agenda sem pagar. Fechar isso é redesenho das regras, registrado em
+> `memory-security.md` como risco aceito até o beta aberto. O que esta mudança
+> fez foi tirar o caminho fácil.
+
 ### 2.1 Asaas em produção
 
 - [ ] Trocar o segredo `ASAAS_API_KEY` para a chave `$aact_prod_`

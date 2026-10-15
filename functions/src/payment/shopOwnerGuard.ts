@@ -1,5 +1,7 @@
 import * as admin from 'firebase-admin';
 
+import { shopIdValido } from './shopBilling';
+
 export type ShopAutorizado =
   | { ok: true; shopId: string; shop: admin.firestore.DocumentData }
   | { ok: false; status: number; error: string };
@@ -21,8 +23,13 @@ export async function autorizarDonoDoShop(
 
   const { uid } = await admin.auth().verifyIdToken(idToken);
 
-  const { shopId } = (req.body ?? {}) as { shopId?: string };
+  const { shopId } = (req.body ?? {}) as { shopId?: unknown };
   if (!shopId) return { ok: false, status: 400, error: 'shopId é obrigatório.' };
+
+  // Formato antes de montar o caminho: com barra dentro, `shops/${shopId}`
+  // aponta para outro documento — `a/settings/b` vira `shops/a/settings/b`, que
+  // é caminho de documento válido e fica sob uma subcoleção que o dono escreve.
+  if (!shopIdValido(shopId)) return { ok: false, status: 400, error: 'shopId inválido.' };
 
   const snap = await db.doc(`shops/${shopId}`).get();
   if (!snap.exists) return { ok: false, status: 404, error: 'Loja não encontrada.' };

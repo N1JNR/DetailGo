@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 
 import { resolveAsaasConfig } from './asaasConfig';
 import { autorizarDonoDoShop } from './shopOwnerGuard';
+import { lerAssinatura, limparAssinatura } from './shopBilling';
 import { toSubscriptionView, type AsaasSubscription } from './asaasSubscriptionView';
 
 const asaasApiKey = defineSecret('ASAAS_API_KEY');
@@ -26,7 +27,10 @@ export const getAsaasSubscription = onRequest(
         return;
       }
 
-      const subscriptionId = auth.shop.asaasSubscriptionId as string | undefined;
+      // O id vem de shopBilling, que o cliente não escreve — e não do documento
+      // da loja, que o dono edita. Ler de lá deixava qualquer dono consultar a
+      // assinatura de outra estética só gravando o id dela no próprio shop.
+      const subscriptionId = await lerAssinatura(db, auth.shopId);
       // Sem assinatura é caso normal, não erro: quem pagou por Pix cai aqui.
       if (!subscriptionId) {
         res.status(200).json({ assinatura: null });
@@ -83,7 +87,10 @@ export const cancelAsaasSubscription = onRequest(
         return;
       }
 
-      const subscriptionId = auth.shop.asaasSubscriptionId as string | undefined;
+      // Mesma razão da consulta: o id tem que vir de onde o chamador não
+      // escreve, senão cancelar a assinatura de outra estética é só gravar o id
+      // dela no próprio documento.
+      const subscriptionId = await lerAssinatura(db, auth.shopId);
       if (!subscriptionId) {
         res.status(400).json({ error: 'Nenhuma assinatura para cancelar.' });
         return;
@@ -103,7 +110,7 @@ export const cancelAsaasSubscription = onRequest(
         return;
       }
 
-      await db.doc(`shops/${auth.shopId}`).update({ asaasSubscriptionId: null });
+      await limparAssinatura(db, auth.shopId);
 
       logger.info(`Assinatura cancelada: shop=${auth.shopId} sub=${subscriptionId}`);
       res.status(200).json({ cancelada: true });

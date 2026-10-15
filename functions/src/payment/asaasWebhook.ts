@@ -5,6 +5,7 @@ import * as admin from 'firebase-admin';
 
 import { isValidAsaasToken } from './asaasWebhookToken';
 import { decideFromEvent, nextActiveUntil } from './asaasEvents';
+import { gravarCobranca, shopIdValido } from './shopBilling';
 
 const asaasWebhookToken = defineSecret('ASAAS_WEBHOOK_TOKEN');
 
@@ -37,6 +38,16 @@ export const asaasWebhook = onRequest({ secrets: [asaasWebhookToken] }, async (r
     const shopId = decisao.ref.shopId ?? (await resolveShopId(db, decisao.ref.checkoutSession));
     if (!shopId) {
       logger.warn(`Pagamento sem estetica identificada: payment=${decisao.paymentId}`);
+      res.status(200).send('ok');
+      return;
+    }
+
+    // O shopId chega do corpo do Asaas (externalReference) ou do documento de
+    // checkout. Conferir o formato antes de montar caminho: barra dentro dele
+    // aponta para outro documento, e aqui escrevemos com o Admin SDK, que passa
+    // por cima das regras.
+    if (!shopIdValido(shopId)) {
+      logger.error(`Pagamento com shopId fora do formato: ${JSON.stringify(shopId)}`);
       res.status(200).send('ok');
       return;
     }
@@ -89,16 +100,16 @@ export const asaasWebhook = onRequest({ secrets: [asaasWebhookToken] }, async (r
         { merge: true },
       );
 
+      // No documento da loja ficam só os dois campos que o app lê para liberar
+      // a tela. O vínculo com o Asaas vai para shopBilling, fechado ao cliente.
       tx.update(shopRef, {
         subscriptionStatus: 'active',
         activeUntil: admin.firestore.Timestamp.fromDate(nextActiveUntil(atual, now)),
-        // Só grava quando o evento traz assinatura. Pagamento por Pix é avulso
-        // e não tem subscriptionId: escrever null aqui apagaria a recorrência
-        // no cartão de quem só quis adiantar um mês, e a tela de assinatura
-        // perderia o botão de cancelar.
-        ...(decisao.subscriptionId ? { asaasSubscriptionId: decisao.subscriptionId } : {}),
+      });
+
+      gravarCobranca(tx, db, shopId, {
+        asaasSubscriptionId: decisao.subscriptionId,
         lastPaymentId: decisao.paymentId,
-        lastPaymentAt: admin.firestore.FieldValue.serverTimestamp(),
       });
 
       return false;

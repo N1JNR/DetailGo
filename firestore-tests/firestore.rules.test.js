@@ -14,7 +14,7 @@ const {
   assertFails,
   assertSucceeds,
 } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, setDoc, updateDoc } = require('firebase/firestore');
+const { doc, getDoc, setDoc, updateDoc, Timestamp } = require('firebase/firestore');
 
 const OWNER_A = 'owner_a';
 const OWNER_B = 'owner_b';
@@ -50,8 +50,26 @@ beforeEach(async () => {
   // Semeia o estado inicial ignorando as regras (contexto admin).
   await testEnv.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, 'shops', SHOP_A), { ownerId: OWNER_A, name: 'Estetica A' });
+    // SHOP_A nasce em trial — é desse estado que parte a tentativa de se
+    // promover a pago sozinho, que os testes de cobrança cobrem.
+    //
+    // O valor importa: `affectedKeys()` só lista campo cujo valor MUDOU, então
+    // semear já como 'active' faria a gravação de 'active' virar escrita sem
+    // efeito, com diff vazio, e a regra passaria sem que isso signifique nada.
+    await setDoc(doc(db, 'shops', SHOP_A), {
+      ownerId: OWNER_A,
+      name: 'Estetica A',
+      subscriptionStatus: 'trial',
+      trialEndsAt: Timestamp.fromMillis(NOW + 3 * 24 * 60 * 60 * 1000),
+      activeUntil: null,
+    });
     await setDoc(doc(db, 'shops', SHOP_B), { ownerId: OWNER_B, name: 'Estetica B' });
+    // Vínculo com o Asaas: fora do alcance do cliente, escrito só pelo backend.
+    await setDoc(doc(db, 'shopBilling', SHOP_A), {
+      shopId: SHOP_A,
+      asaasSubscriptionId: 'sub_da_estetica_a',
+      lastPaymentId: 'pay_1',
+    });
     await setDoc(doc(db, 'shops', SHOP_A, 'settings', 'config'), { openHour: 8, closeHour: 18 });
     await setDoc(doc(db, 'shops', SHOP_A, 'services', 'svc1'), { label: 'Lavagem', price: 50 });
     await setDoc(doc(db, 'shops', SHOP_A, 'appointments', 'appt_future'), {
@@ -83,29 +101,143 @@ beforeEach(async () => {
   });
 });
 
+/** Documento de shop recém-criado, como o cadastro do app monta. */
+const novoShop = (ownerId, extra = {}) => ({
+  ownerId,
+  name: 'X',
+  subscriptionStatus: 'trial',
+  activeUntil: null,
+  trialEndsAt: Timestamp.fromMillis(NOW + 7 * 24 * 60 * 60 * 1000),
+  ...extra,
+});
+
 describe('shops', () => {
-  test('qualquer um lê o shop (mapa público)', async () => {
-    await assertSucceeds(getDoc(doc(anon(), 'shops', SHOP_A)));
+  // Era `allow read: if true`, e regra do Firestore não esconde campo: o
+  // documento inteiro ia para a internet aberta. O mapa fica atrás do login,
+  // então exigir sessão não custa nada e fecha a exposição.
+  test('deslogado não lê shop', async () => {
+    await assertFails(getDoc(doc(anon(), 'shops', SHOP_A)));
+  });
+
+  test('logado lê shop (o mapa precisa)', async () => {
+    await assertSucceeds(getDoc(doc(authed(CUSTOMER_1), 'shops', SHOP_A)));
   });
 
   test('cria shop só com ownerId == próprio uid', async () => {
     await assertSucceeds(
-      setDoc(doc(authed(CUSTOMER_1), 'shops', 'novo_shop'), { ownerId: CUSTOMER_1, name: 'X' }),
+      setDoc(doc(authed(CUSTOMER_1), 'shops', 'novo_shop'), novoShop(CUSTOMER_1)),
     );
   });
 
   test('não cria shop no nome de outro', async () => {
-    await assertFails(
-      setDoc(doc(authed(CUSTOMER_1), 'shops', 'novo_shop'), { ownerId: OWNER_B, name: 'X' }),
-    );
+    await assertFails(setDoc(doc(authed(CUSTOMER_1), 'shops', 'novo_shop'), novoShop(OWNER_B)));
   });
 
   test('dono não edita shop de outro dono', async () => {
     await assertFails(updateDoc(doc(authed(OWNER_B), 'shops', SHOP_A), { name: 'hack' }));
   });
 
-  test('dono edita o próprio shop', async () => {
+  test('dono edita os campos normais do próprio shop', async () => {
     await assertSucceeds(updateDoc(doc(authed(OWNER_A), 'shops', SHOP_A), { name: 'A novo' }));
+  });
+});
+
+// O app decide o acesso lendo subscriptionStatus/activeUntil do documento da
+// loja, e a Cloud Function usava o asaasSubscriptionId de dentro dele. Com os
+// campos graváveis pelo dono, dava para liberar o plano de graça e para
+// cancelar a assinatura de OUTRA estética.
+describe('shops — campos de cobrança fora do alcance do dono', () => {
+  test.each([
+    ['subscriptionStatus', { subscriptionStatus: 'active' }],
+    ['activeUntil', { activeUntil: Timestamp.fromMillis(NOW + 365 * 24 * 60 * 60 * 1000) }],
+    ['trialEndsAt', { trialEndsAt: Timestamp.fromMillis(NOW + 365 * 24 * 60 * 60 * 1000) }],
+    ['asaasSubscriptionId', { asaasSubscriptionId: 'sub_de_outra_estetica' }],
+    ['lastPaymentId', { lastPaymentId: 'pay_forjado' }],
+    ['lastPaymentAt', { lastPaymentAt: Timestamp.fromMillis(NOW) }],
+    ['ownerId', { ownerId: CUSTOMER_2 }],
+  ])('dono não altera %s no próprio shop', async (_campo, patch) => {
+    await assertFails(updateDoc(doc(authed(OWNER_A), 'shops', SHOP_A), patch));
+  });
+
+  test('dono não mistura campo normal com campo de cobrança', async () => {
+    await assertFails(
+      updateDoc(doc(authed(OWNER_A), 'shops', SHOP_A), {
+        name: 'A novo',
+        subscriptionStatus: 'active',
+      }),
+    );
+  });
+
+  test('não nasce shop já ativo', async () => {
+    await assertFails(
+      setDoc(
+        doc(authed(CUSTOMER_1), 'shops', 'novo_shop'),
+        novoShop(CUSTOMER_1, {
+          subscriptionStatus: 'active',
+          activeUntil: Timestamp.fromMillis(NOW + 365 * 24 * 60 * 60 * 1000),
+        }),
+      ),
+    );
+  });
+
+  // O trial é escrito pelo cliente no cadastro, então não dá para proibir o
+  // campo — só limitar o valor. Sem o teto, bastava nascer com trial em 2099.
+  test('não nasce com trial além da janela', async () => {
+    await assertFails(
+      setDoc(
+        doc(authed(CUSTOMER_1), 'shops', 'novo_shop'),
+        novoShop(CUSTOMER_1, {
+          trialEndsAt: Timestamp.fromMillis(NOW + 365 * 24 * 60 * 60 * 1000),
+        }),
+      ),
+    );
+  });
+
+  test('não nasce com trial no passado', async () => {
+    await assertFails(
+      setDoc(
+        doc(authed(CUSTOMER_1), 'shops', 'novo_shop'),
+        novoShop(CUSTOMER_1, { trialEndsAt: Timestamp.fromMillis(PAST) }),
+      ),
+    );
+  });
+
+  test('não nasce com vínculo de assinatura', async () => {
+    await assertFails(
+      setDoc(
+        doc(authed(CUSTOMER_1), 'shops', 'novo_shop'),
+        novoShop(CUSTOMER_1, { asaasSubscriptionId: 'sub_de_outra_estetica' }),
+      ),
+    );
+  });
+});
+
+describe('shopBilling (vínculo com o Asaas)', () => {
+  test.each([
+    ['o próprio dono', OWNER_A],
+    ['outro dono', OWNER_B],
+    ['um cliente', CUSTOMER_1],
+  ])('%s não lê o vínculo', async (_quem, uid) => {
+    await assertFails(getDoc(doc(authed(uid), 'shopBilling', SHOP_A)));
+  });
+
+  test('deslogado não lê o vínculo', async () => {
+    await assertFails(getDoc(doc(anon(), 'shopBilling', SHOP_A)));
+  });
+
+  test('ninguém escreve o vínculo', async () => {
+    await assertFails(
+      setDoc(doc(authed(OWNER_A), 'shopBilling', SHOP_A), { asaasSubscriptionId: 'forjado' }),
+    );
+    await assertFails(
+      setDoc(doc(authed(OWNER_B), 'shopBilling', SHOP_A), { asaasSubscriptionId: 'forjado' }),
+    );
+  });
+
+  test('dono não cria vínculo para a própria loja', async () => {
+    await assertFails(
+      setDoc(doc(authed(OWNER_B), 'shopBilling', SHOP_B), { asaasSubscriptionId: 'sub_qualquer' }),
+    );
   });
 });
 
