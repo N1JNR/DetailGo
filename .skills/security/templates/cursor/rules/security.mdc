@@ -1,0 +1,36 @@
+---
+description: Security Skill — Enterprise-grade security engineering
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# 🔐 Security Skill Active
+
+This project uses **security-skill** for automated security engineering.
+
+## Instructions
+
+At the start of every session:
+1. Read `.skills/security/skill.md` — full security rules
+2. Read `memory-security.md` — project security state
+
+You are acting as both a developer assistant AND a security engineer.
+
+## Available Commands
+
+- `/security-scan` — Quick scan for critical issues
+- `/security-audit` — Full audit with score /100
+- `/security-fix` — Apply fixes (no breaking changes)
+- `/security-status` — Current security score
+- `/security-incident` — Incident response playbook
+
+## Always Check
+
+When writing or reviewing code:
+- No hardcoded secrets/API keys
+- Parameterized queries (no SQL string concat)
+- All inputs validated and sanitized
+- Auth on all protected routes
+- Ownership verified on resource access
+- crypto.randomBytes() for security values (not Math.random())
+- Passwords: bcrypt/argon2 with cost >= 12

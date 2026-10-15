@@ -1,0 +1,46 @@
+# Go - Security Skill .gitignore template
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+.env.*
+secrets/
+*.pem
+*.key
+*.cert
+
+# === GO ===
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+# Test binary
+*.test
+# Output of go build
+/bin/
+/dist/
+# Go workspace file
+go.work
+
+# === DATABASE ===
+*.db
+*.sqlite
+dump.sql
+
+# === VENDOR (optional — many teams commit vendor/) ===
+# vendor/
+
+# === BACKUPS ===
+*.bak
+*.backup
+*.old
+
+# === OS ===
+.DS_Store
+Thumbs.db
+
+# === IDE ===
+.idea/
+.vscode/settings.json

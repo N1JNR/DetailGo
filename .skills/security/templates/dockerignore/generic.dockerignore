@@ -1,0 +1,66 @@
+# Security Skill — .dockerignore template
+# Prevents sensitive files from being included in Docker build context
+
+# === SECRETS & ENV ===
+.env
+.env.local
+.env.*
+*.env
+secrets/
+.secrets/
+
+# === GIT ===
+.git/
+.gitignore
+.gitattributes
+
+# === NODE.JS ===
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# === DEVELOPMENT FILES ===
+.vscode/
+.idea/
+*.md
+!README.md
+*.test.*
+*.spec.*
+coverage/
+.nyc_output/
+
+# === LOGS ===
+logs/
+*.log
+
+# === BUILD ARTIFACTS ===
+dist/  # if re-built inside container
+# .next/  # keep if using pre-built Next.js
+
+# === TESTING ===
+__tests__/
+tests/
+test/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# === CI/CD ===
+.github/
+.circleci/
+.gitlab-ci.yml
+
+# === DOCUMENTATION ===
+docs/
+*.md
+LICENSE
+
+# === BACKUPS ===
+*.bak
+*.backup
+*.old
+
+# === OS ===
+.DS_Store
+Thumbs.db

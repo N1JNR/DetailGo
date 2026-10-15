@@ -117,3 +117,11 @@ firebase-export-*
 
 # Claude Code (pastas temporárias de desenvolvimento)
 .claude/
+
+# === Added by security-skill ===
+.env
+.env.local
+.env.*
+*.key
+*.pem
+secrets/

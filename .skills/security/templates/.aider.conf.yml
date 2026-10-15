@@ -1,0 +1,36 @@
+# .aider.conf.yml — Security Skill
+# Aider (terminal-based AI coding assistant) project configuration
+# Place at project root
+
+## Model preferences (adjust to your API access)
+# model: claude-3-5-sonnet-20241022
+# model: gpt-4o
+
+## Auto-commit with descriptive messages
+auto-commits: true
+commit-prompt: "Write a conventional commit message. If this commit includes security fixes, prefix with 'security: '"
+
+## Always include security context files
+# These files are read by aider at startup
+read:
+  - .skills/security/skill.md
+  - memory-security.md
+
+## Ignore these paths (don't suggest changes here)
+aiderignore: |
+  node_modules/
+  .git/
+  dist/
+  build/
+  coverage/
+
+## Show diffs before applying
+show-diffs: true
+
+## Git configuration
+dirty-commits: false
+
+## Security note
+# This project uses security-skill.
+# Available commands: /security-scan, /security-audit, /security-fix, /security-status
+# The AI will act as a security engineer in addition to its normal role.

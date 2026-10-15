@@ -1,0 +1,60 @@
+# Java / Spring Boot - Security Skill .gitignore template
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+application-prod.properties
+application-production.yml
+application-secret.yml
+application-local.yml
+secrets/
+*.key
+*.pem
+*.jks       # Java KeyStore — NEVER commit
+*.keystore  # NEVER commit
+*.truststore
+
+# === MAVEN ===
+target/
+.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+release.properties
+dependency-reduced-pom.xml
+
+# === GRADLE ===
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# === IDE ===
+.idea/
+*.iml
+*.ipr
+*.iws
+.settings/
+.project
+.classpath
+*.class
+
+# === SPRING BOOT ===
+src/main/resources/application-prod.yml
+src/main/resources/application-prod.properties
+src/main/resources/application-local.yml
+
+# === DATABASE ===
+*.db
+dump.sql
+
+# === LOGS ===
+*.log
+logs/
+
+# === BACKUPS ===
+*.bak
+*.old
+
+# === OS ===
+.DS_Store
+Thumbs.db

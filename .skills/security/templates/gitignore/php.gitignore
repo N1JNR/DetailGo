@@ -1,0 +1,57 @@
+# PHP - Security Skill .gitignore template
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+.env.*
+*.env
+secrets/
+.secrets/
+
+# === KEYS & CERTIFICATES ===
+*.key
+*.pem
+*.p12
+*.pfx
+*.cert
+*.crt
+
+# === PHP / COMPOSER ===
+vendor/
+composer.lock  # Optional: usually committed
+.composer/
+
+# === LARAVEL SPECIFIC ===
+/bootstrap/cache/
+/storage/*.key
+/storage/app/public/
+/storage/logs/
+/storage/framework/cache/
+/storage/framework/sessions/
+/storage/framework/views/
+.env.testing
+
+# === DATABASE ===
+*.sqlite
+*.sqlite3
+database.sql
+dump.sql
+backup.sql
+
+# === CACHE ===
+cache/
+tmp/
+temp/
+
+# === LOGS ===
+*.log
+logs/
+
+# === BACKUPS ===
+*.bak
+*.backup
+*.old
+
+# === OS ===
+.DS_Store
+Thumbs.db

@@ -1,0 +1,71 @@
+rules_version = '2';
+// Security Skill — Firebase Security Rules Template
+// ⚠️  Replace with rules appropriate for your data model
+// This is a SECURE starting point — deny all, then allow explicitly
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // === HELPER FUNCTIONS ===
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isValidEmail(email) {
+      return email.matches('.*@.*\\..*');
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    // === DEFAULT: DENY EVERYTHING ===
+    // Remove this and add explicit rules below
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // === USERS COLLECTION ===
+    // Users can only read/write their own document
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId)
+        && hasRequiredFields(['email', 'createdAt'])
+        && isValidEmail(request.resource.data.email)
+        && request.resource.data.role == null; // cannot set role on creation
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'email']); // cannot change role/email
+      allow delete: if isAdmin();
+    }
+
+    // === POSTS/CONTENT COLLECTION (example) ===
+    match /posts/{postId} {
+      // Anyone can read published posts
+      allow read: if resource.data.published == true || isOwner(resource.data.authorId);
+      // Only authenticated users can create
+      allow create: if isAuthenticated()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.keys().hasAll(['title', 'content', 'authorId', 'createdAt']);
+      // Only owner or admin can update
+      allow update: if (isOwner(resource.data.authorId) || isAdmin())
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorId']);
+      // Only owner or admin can delete
+      allow delete: if isOwner(resource.data.authorId) || isAdmin();
+    }
+
+    // === ADMIN COLLECTION ===
+    match /admin/{document=**} {
+      allow read, write: if isAdmin();
+    }
+
+  }
+}
