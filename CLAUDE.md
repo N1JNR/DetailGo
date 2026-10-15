@@ -193,6 +193,10 @@ Customer        → Dashboard, Appointment, MyAppointments, History, Profile
 
 Stack: **Jest** + **@testing-library/react-native** (RNTL). Coverage via Istanbul.
 
+> A norma de aceite está em **`docs/criterios-de-aceite.md`**: quando a mutação
+> é exigida, o catálogo de teste vazio e o que explicitamente **não** é
+> exigido. Leia antes de começar uma atividade.
+
 > **Definição de pronto:** toda feature ou alteração com lógica nova entrega
 > **teste unitário junto**, sempre que houver comportamento a proteger (regra de
 > negócio, validação, cálculo, fluxo). Não é etapa separada — faz parte da
