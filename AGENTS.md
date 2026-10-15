@@ -31,6 +31,13 @@ services/ utils/ index.ts`. Imports por alias: `@app/`, `@features/`, `@shared/`
 Estas são as que um agente quebra sem perceber. Violar qualquer uma reprova a
 entrega, mesmo que os testes passem.
 
+**0. `docs/criterios-de-aceite.md` é obrigatório.** Leia antes de começar
+qualquer atividade. Ele define o que conta como pronto, inclusive quando a
+mutação é exigida e o catálogo de teste vazio — teste verde que não afirma
+nada. Cada item de lá nasceu de uma falha real deste projeto, com o caso
+citado. A seção "Definição de pronto" no fim deste arquivo é o resumo; o
+documento é a norma.
+
 **1. Isolamento multi-tenant.** Toda query no Firestore deve ter escopo de
 `shopId`. Nunca leia coleções de agendamentos, serviços ou configurações sem o
 shop no caminho ou num `where` validado. Um cliente jamais pode ler ou escrever
@@ -200,14 +207,23 @@ implicações de segurança e limitações conhecidas.
 
 ## Definição de pronto
 
+Resumo. A norma completa é `docs/criterios-de-aceite.md`.
+
 ```
 implementação completa
 + tsc, lint, format e testes passando (executados de verdade)
 + testes novos para a lógica nova
++ mutação quando o arquivo toca dinheiro, segurança ou shopId,
+  com o placar no PR ("17 de 17 mortos")
++ nenhum dos padrões de teste vazio do catálogo
 + isolamento multi-tenant preservado
 + nenhum segredo no diff
 + diff revisado, sem arquivo não relacionado
 ```
+
+> **Cobertura não é evidência.** O `ProfileScreen` chegou a 95% de linhas com 5
+> mutantes vivos. Subir o número do ratchet não prova nada sobre a qualidade do
+> teste — só que ele não regrediu.
 
 Não relate tarefa como concluída com falha conhecida em aberto. Ao terminar,
 resuma: o que mudou, testes, implicações de segurança, arquivos tocados e riscos
