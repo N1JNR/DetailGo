@@ -448,6 +448,7 @@ export default function ProfileScreen() {
         >
           <View style={styles.header}>
             <TouchableOpacity
+              testID="voltar"
               style={styles.squareButton}
               onPress={() => navigation.goBack()}
               activeOpacity={0.75}
@@ -461,13 +462,14 @@ export default function ProfileScreen() {
           <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             <View style={styles.hero}>
               <TouchableOpacity
+                testID="trocar-foto"
                 style={styles.avatarWrap}
                 onPress={handleAvatarChange}
                 activeOpacity={0.85}
                 disabled={savingPhoto}
               >
                 {avatarSource ? (
-                  <Image source={avatarSource} style={styles.avatarImage} />
+                  <Image testID="avatar" source={avatarSource} style={styles.avatarImage} />
                 ) : (
                   <View style={styles.avatar}>
                     <Text style={styles.avatarText}>{initials}</Text>
@@ -611,6 +613,7 @@ export default function ProfileScreen() {
                     </Text>
                   </View>
                   <TouchableOpacity
+                    testID="verificar-email"
                     style={[styles.verifyButton, checkingConfirm && styles.disabled]}
                     onPress={checkEmailConfirmed}
                     disabled={checkingConfirm}

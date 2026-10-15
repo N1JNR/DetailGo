@@ -2,10 +2,15 @@
 
 Escopo: lançar Android e iOS, nessa ordem, com iOS por último.
 
-Estado em 09/10/2026: 926 testes verdes, cobertura 82,8% statements · 74,0%
+Estado em 15/10/2026: 989 testes verdes, cobertura 89,3% statements · 81,1%
 branches, TypeScript estrito e lint limpos. Pagamento Asaas validado ponta a
-ponta em sandbox. Esteira em ~1min35s na maioria das PRs. `npm audit` sem
-nenhuma vulnerabilidade crítica, no app e nas Cloud Functions.
+ponta em sandbox. Esteira em ~1min35s na maioria das PRs.
+
+> **Vulnerabilidade crítica volta sozinha.** Em 09/10 o `npm audit` ficou sem
+> nenhuma crítica nas duas pontas; em 15/10 havia uma de novo, sem ninguém
+> mexer em nada — advisories novas do `handlebars` publicadas no meio. Medir
+> contra um número anotado dias antes dá conclusão errada: a comparação só vale
+> se as duas pontas forem medidas no mesmo dia.
 
 Este arquivo é a fonte de verdade do progresso. Cada item fechado é marcado
 aqui, no mesmo PR que o resolve.
@@ -127,24 +132,30 @@ Achado MÉDIO da auditoria de 02/09.
 A média esconde onde estão os buracos. Ordem abaixo é a ordem do estrago, não
 a do tamanho.
 
-Estado em 09/10/2026: 926 testes, 82,8% statements · 74,0% branches.
+Estado em 15/10/2026: 989 testes, 89,3% statements · 81,1% branches.
 
 | Área            | Cobertura | Por que primeiro                                             |
 | --------------- | --------- | ------------------------------------------------------------ |
-| `profile`       | 0%        | 229 statements num só arquivo, sem nenhuma proteção          |
 | `notifications` | 33%       | push é o que mais custa depurar depois de publicado          |
 | `shops`         | 52%       | o que falta é contexto e tela — os serviços já estão em 100% |
 | `settings`      | 70%       | horário de funcionamento; erra e a agenda aceita fora dele   |
 
 - [x] `subscription` — estados de assinatura, carência, cancelamento. Serviços
       e as duas telas em 100%, 12 de 12 mutantes mortos na tela de pagamento
-- [ ] `profile/screens/ProfileScreen.tsx` — 229 statements
+- [x] `profile/screens/ProfileScreen.tsx` — 0% para 97%, 63 casos, 23 de 23
+      mutantes mortos
 - [ ] `notifications` — registro de token, recebimento em foreground, navegação
       ao tocar
 - [ ] `shops/context/ShopContext.tsx` — 45 statements; é ele que resolve em que
       loja a sessão está, a fronteira multi-tenant no lado da interface
 - [ ] `settings/services/shopSettings.service.ts`
 - [ ] Decidir sobre Proguard/minify no release (hoje desligado)
+
+> **Cobertura alta não é teste bom.** O `ProfileScreen` chegou a 95% de linhas
+> com 5 mutantes vivos: validava o nome mas não o sobrenome, aceitava telefone
+> de 9 dígitos, regravava máscara em telefone legado e comparava e-mail sem
+> normalizar os dois lados. Nenhum apareceu no relatório de cobertura — todos
+> apareceram ao quebrar o código de propósito.
 
 > **O isolamento entre lojas já tem prova.** `shops/services` e `shops/hooks`
 > estão em 100%, e é ali que vivem as consultas com `shopId`. O que falta em
