@@ -167,16 +167,16 @@ Achado MÉDIO da auditoria de 02/09.
 A média esconde onde estão os buracos. Ordem abaixo é a ordem do estrago, não
 a do tamanho.
 
-Estado em 15/10/2026: 1033 testes, 93,8% statements · 83,2% branches · 93,3%
-funções · 95,1% linhas. Piso do ratchet em 92/82/92/94.
+Estado em 15/10/2026: 1073 testes, 94,2% statements · 83,6% branches · 93,6%
+funções · 95,5% linhas. Piso do ratchet em 93/82/92/94.
 
 | Área            | Início | Hoje |                     |
 | --------------- | ------ | ---- | ------------------- |
 | `subscription`  | 67%    | 99%  | fechado             |
 | `profile`       | 0%     | 97%  | fechado             |
 | `notifications` | 10%    | 92%  | fechado             |
+| `settings`      | 70%    | 100% | fechado             |
 | `shops`         | 41%    | 74%  | falta tela e ícones |
-| `settings`      | 70%    | 70%  | aberto              |
 
 - [x] `subscription` — estados de assinatura, carência, cancelamento. Serviços
       e as duas telas em 100%, 12 de 12 mutantes mortos na tela de pagamento
@@ -186,11 +186,10 @@ funções · 95,1% linhas. Piso do ratchet em 92/82/92/94.
       ao tocar (PR #157 do agente)
 - [x] `shops/context/ShopContext.tsx` — a fronteira multi-tenant na interface.
       11 de 11 mutantes mortos depois de reforçar o spec do agente
-- [ ] `settings/services/shopSettings.service.ts` — 13 statements. **O próximo
-      pela ordem do estrago:** guarda o horário de funcionamento, de onde sai o
-      cálculo de disponibilidade. Errar ali deixa a agenda aceitar fora do
-      expediente, e o estrago chega ao cliente final como estética fechada com
-      carro marcado na porta
+- [x] `settings/services/shopSettings.service.ts` — 70% para **100%** nas quatro
+      métricas, 44 casos, 17 de 17 mutantes mortos. Achou dois defeitos: lista
+      de dias só com lixo virava zero dias de trabalho, e `workingDays` com
+      tipo torto derrubava a leitura inteira das configurações
 - [ ] `notifications/components/NotificationsScreenView.tsx` — 11 statements
 - [ ] `shops/screens/ShopProfileScreen.tsx` — 42 statements; o maior que resta,
       mas é edição de perfil da loja: erro ali é visível e o dono desfaz
