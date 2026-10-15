@@ -1,0 +1,106 @@
+# Node.js - Security Skill .gitignore template
+# Merged with any existing .gitignore content
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.test
+.env.*.local
+.env.backup
+*.env
+
+# === KEYS & CERTIFICATES ===
+*.key
+*.pem
+*.p12
+*.pfx
+*.cert
+*.crt
+*.csr
+*.ca
+*.der
+id_rsa
+id_rsa.pub
+*.ssh
+.ssh/
+*.gpg
+*.asc
+
+# === SECRET FILES ===
+secrets/
+.secrets/
+config/secrets*
+config/credentials*
+credentials.json
+service-account.json
+firebase-adminsdk*.json
+google-credentials.json
+gcloud-credentials.json
+*.secret
+*.secrets
+
+# === NODE.JS ===
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.npm
+.yarn-integrity
+*.log
+
+# === BUILD OUTPUTS ===
+.next/
+.nuxt/
+dist/
+build/
+out/
+.output/
+
+# === SOURCE MAPS (don't expose in production) ===
+*.js.map
+*.css.map
+
+# === DATABASE ===
+*.sqlite
+*.sqlite3
+*.db
+dump.sql
+database.sql
+backup.sql
+*.sql.gz
+
+# === BACKUP FILES ===
+*.bak
+*.backup
+*.old
+*.orig
+*.copy
+*.swp
+*~
+
+# === IDE & OS ===
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# === COVERAGE & TESTING ===
+coverage/
+.nyc_output/
+*.lcov
+
+# === DOCKER ===
+.env.docker
+
+# === LOGS ===
+logs/
+*.log
+npm-debug.log*

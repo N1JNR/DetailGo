@@ -39,6 +39,7 @@
     "qs": "^6.15.4",
     "body-parser": "^1.20.6",
     "proxy-addr": "^2.0.8",
-    "@fastify/busboy": "^3.2.2"
+    "@fastify/busboy": "^3.2.2",
+    "handlebars": "^4.7.10"
   }
 }

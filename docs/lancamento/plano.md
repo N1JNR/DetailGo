@@ -2,9 +2,11 @@
 
 Escopo: lançar Android e iOS, nessa ordem, com iOS por último.
 
-Estado em 15/10/2026: 989 testes verdes, cobertura 89,3% statements · 81,1%
-branches, TypeScript estrito e lint limpos. Pagamento Asaas validado ponta a
-ponta em sandbox. Esteira em ~1min35s na maioria das PRs.
+Estado em 15/10/2026: 1033 testes do app, 122 das Cloud Functions e 60 das
+regras do Firestore no emulador. Cobertura 93,8% statements · 83,2% branches.
+TypeScript estrito e lint limpos. `npm audit` sem nenhuma crítica nas duas
+pontas. Pagamento Asaas validado ponta a ponta em sandbox. Esteira em ~1min35s
+na maioria das PRs.
 
 > **Vulnerabilidade crítica volta sozinha.** Em 09/10 o `npm audit` ficou sem
 > nenhuma crítica nas duas pontas; em 15/10 havia uma de novo, sem ninguém
@@ -99,6 +101,39 @@ funcionar em produção** se a nova SHA-1 não for cadastrada antes.
 
 ## Bloco 2 — Dinheiro e segurança
 
+### 2.0 Isolamento entre estéticas
+
+Revisão manual das Cloud Functions inteiras em 15/10, depois que a revisão por
+diff voltou vazia — ela só olha o que mudou, e estas três eram de desenho.
+
+- [x] `asaasSubscriptionId` fora do documento gravável pelo cliente
+- [x] `shops/{shopId}` deixa de ser legível sem login
+- [x] Campos que decidem acesso pago travados contra escrita do dono
+- [x] `shopId` validado antes de virar caminho de documento
+
+> **O que estava aberto.** A função de cancelamento conferia que o _documento_
+> era de quem chamou, e então usava o `asaasSubscriptionId` de dentro dele — um
+> campo que o dono podia escrever. Como `shops` era de leitura pública, dava
+> para ler o id da vítima, gravar no próprio documento e **cancelar a assinatura
+> dela**. Junto disso, `subscriptionStatus` e `activeUntil` também eram
+> graváveis: um `update` dava plano pago vitalício, e o `trialEndsAt` não tinha
+> teto no cadastro.
+>
+> Provar que o documento é seu não prova que o conteúdo dele é seu. O vínculo
+> com o Asaas passou para `shopBilling/{shopId}`, que as regras fecham dos dois
+> lados — só o Admin SDK escreve.
+>
+> **Migração:** estéticas que assinaram antes desta mudança têm o id no
+> documento antigo e vão aparecer sem assinatura até o próximo pagamento
+> confirmado recriar o vínculo. Em sandbox isso não custa nada; se houvesse
+> conta real, seria preciso copiar o campo antes de publicar.
+
+> **O paywall continua sendo validado no cliente.** As regras liberam escrita
+> por `isShopOwner`, nunca por assinatura — então quem mexer na API alcança a
+> agenda sem pagar. Fechar isso é redesenho das regras, registrado em
+> `memory-security.md` como risco aceito até o beta aberto. O que esta mudança
+> fez foi tirar o caminho fácil.
+
 ### 2.1 Asaas em produção
 
 - [ ] Trocar o segredo `ASAAS_API_KEY` para a chave `$aact_prod_`
@@ -132,23 +167,35 @@ Achado MÉDIO da auditoria de 02/09.
 A média esconde onde estão os buracos. Ordem abaixo é a ordem do estrago, não
 a do tamanho.
 
-Estado em 15/10/2026: 989 testes, 89,3% statements · 81,1% branches.
+Estado em 15/10/2026: 1033 testes, 93,8% statements · 83,2% branches · 93,3%
+funções · 95,1% linhas. Piso do ratchet em 92/82/92/94.
 
-| Área            | Cobertura | Por que primeiro                                             |
-| --------------- | --------- | ------------------------------------------------------------ |
-| `notifications` | 33%       | push é o que mais custa depurar depois de publicado          |
-| `shops`         | 52%       | o que falta é contexto e tela — os serviços já estão em 100% |
-| `settings`      | 70%       | horário de funcionamento; erra e a agenda aceita fora dele   |
+| Área            | Início | Hoje |                     |
+| --------------- | ------ | ---- | ------------------- |
+| `subscription`  | 67%    | 99%  | fechado             |
+| `profile`       | 0%     | 97%  | fechado             |
+| `notifications` | 10%    | 92%  | fechado             |
+| `shops`         | 41%    | 74%  | falta tela e ícones |
+| `settings`      | 70%    | 70%  | aberto              |
 
 - [x] `subscription` — estados de assinatura, carência, cancelamento. Serviços
       e as duas telas em 100%, 12 de 12 mutantes mortos na tela de pagamento
 - [x] `profile/screens/ProfileScreen.tsx` — 0% para 97%, 63 casos, 23 de 23
       mutantes mortos
-- [ ] `notifications` — registro de token, recebimento em foreground, navegação
-      ao tocar
-- [ ] `shops/context/ShopContext.tsx` — 45 statements; é ele que resolve em que
-      loja a sessão está, a fronteira multi-tenant no lado da interface
-- [ ] `settings/services/shopSettings.service.ts`
+- [x] `notifications` — registro de token, recebimento em foreground, navegação
+      ao tocar (PR #157 do agente)
+- [x] `shops/context/ShopContext.tsx` — a fronteira multi-tenant na interface.
+      11 de 11 mutantes mortos depois de reforçar o spec do agente
+- [ ] `settings/services/shopSettings.service.ts` — 13 statements. **O próximo
+      pela ordem do estrago:** guarda o horário de funcionamento, de onde sai o
+      cálculo de disponibilidade. Errar ali deixa a agenda aceitar fora do
+      expediente, e o estrago chega ao cliente final como estética fechada com
+      carro marcado na porta
+- [ ] `notifications/components/NotificationsScreenView.tsx` — 11 statements
+- [ ] `shops/screens/ShopProfileScreen.tsx` — 42 statements; o maior que resta,
+      mas é edição de perfil da loja: erro ali é visível e o dono desfaz
+- [ ] `shops/utils/shopServiceIcons.ts` — 15 statements de mapeamento de ícone.
+      Cobrir dá número, não segurança — por isso é o último
 - [ ] Decidir sobre Proguard/minify no release (hoje desligado)
 
 > **Cobertura alta não é teste bom.** O `ProfileScreen` chegou a 95% de linhas
@@ -157,9 +204,16 @@ Estado em 15/10/2026: 989 testes, 89,3% statements · 81,1% branches.
 > normalizar os dois lados. Nenhum apareceu no relatório de cobertura — todos
 > apareceram ao quebrar o código de propósito.
 
-> **O isolamento entre lojas já tem prova.** `shops/services` e `shops/hooks`
-> estão em 100%, e é ali que vivem as consultas com `shopId`. O que falta em
-> `shops` são `ShopContext`, `ShopProfileScreen` e os ícones de serviço.
+> **O isolamento entre lojas tem prova nos dois lados.** No cliente,
+> `shops/services`, `shops/hooks` e o `ShopContext` — onde vivem as consultas
+> com `shopId` e a resolução de qual loja é a sessão. No servidor, os 60 casos
+> de `firestore.rules` no emulador. O que falta em `shops` é tela e ícones.
+
+> **Teste de regra também pode ser vazio.** Ao cobrir a trava dos campos de
+> cobrança, dois casos passaram sem significar nada: `affectedKeys()` só lista
+> campo cujo **valor mudou**, e a semente já tinha o valor que o teste gravava.
+> Escrita sem efeito, diff vazio, regra aprova. Só apareceu porque os mutantes
+> das regras foram rodados — a cobertura não mostra isso.
 
 ---
 

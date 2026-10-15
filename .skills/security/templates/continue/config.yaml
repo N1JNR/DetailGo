@@ -1,0 +1,44 @@
+rules:
+  # Security Skill — Continue.dev workspace configuration
+  # Place this file at: .continue/config.yaml
+  # Docs: https://docs.continue.dev/
+
+  - name: "Security Skill"
+    rule: |
+      This project uses security-skill for automated security engineering.
+      
+      At the start of every session:
+      1. Read `.skills/security/skill.md` — security engineering instructions
+      2. Read `memory-security.md` — project security state
+      
+      You are acting as both a developer assistant AND a security engineer.
+      
+      Available commands:
+      - /security-scan → Quick scan for critical issues
+      - /security-audit → Full audit with score /100
+      - /security-fix → Apply fixes with confirmation
+      - /security-status → Current security score
+      - /security-incident → Incident response playbook
+      
+      While helping with code, proactively flag:
+      - Hardcoded secrets or API keys
+      - SQL string concatenation (use parameterized queries)
+      - Missing input validation
+      - Missing auth checks on routes
+      - eval() or innerHTML with user input
+      - Math.random() for security values (use crypto.randomBytes())
+
+models:
+  # Add your preferred models here
+  # Example:
+  # - name: Claude 3.5 Sonnet
+  #   provider: anthropic
+  #   model: claude-3-5-sonnet-20241022
+
+context:
+  # Always include security skill files in context
+  providers:
+    - name: file
+      params:
+        - .skills/security/skill.md
+        - memory-security.md

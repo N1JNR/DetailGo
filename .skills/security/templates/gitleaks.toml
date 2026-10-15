@@ -1,0 +1,53 @@
+# Security Skill — gitleaks configuration
+# Place at project root as .gitleaks.toml
+# Doc: https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true  # extends gitleaks default ruleset
+
+# === TITLE ===
+title = "Security Skill — Gitleaks Config"
+
+# === ALLOWLIST (safe patterns to ignore) ===
+[allowlist]
+description = "Known safe patterns"
+regexes = [
+  # Test files
+  ".*test.*",
+  ".*spec.*",
+  ".*example.*",
+  ".*sample.*",
+  # Placeholder values
+  "your_.*_here",
+  "replace_me",
+  "changeme",
+  "placeholder",
+  "xxxx",
+  # Docs
+  "\\$\\{.*\\}",    # template placeholders
+  "\\[.*\\]",       # bracket placeholders
+]
+paths = [
+  ".gitleaks.toml",
+  "*.md",
+  "*.example",
+  "*.sample",
+  "*test*",
+  "*spec*",
+  ".skills/",
+]
+
+# === CUSTOM RULES ===
+# Add project-specific patterns below
+
+# Example: Internal API key format
+# [[rules]]
+# id = "internal-api-key"
+# description = "Internal API key"
+# regex = '''INT-[a-zA-Z0-9]{32}'''
+# tags = ["api-key", "internal"]
+
+# === ENTROPY SETTINGS ===
+[global]
+# Adjust based on false positive rate in your codebase
+# Default: 3.5 (Shannon entropy threshold)

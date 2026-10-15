@@ -1,0 +1,48 @@
+# Ruby / Rails - Security Skill .gitignore template
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+.env.*
+secrets/
+config/secrets.yml
+config/master.key
+config/credentials/*.key
+
+# === KEYS & CERTIFICATES ===
+*.key
+*.pem
+*.p12
+*.cert
+
+# === RUBY / BUNDLER ===
+/.bundle/
+/vendor/bundle/
+.ruby-version  # optional — some teams commit this
+
+# === RAILS SPECIFIC ===
+/log/
+/tmp/
+/storage/
+/public/system/
+/public/uploads/
+/public/assets/
+
+# === DATABASE ===
+*.sqlite3
+db/schema.rb  # debatable — many teams commit this
+dump.sql
+
+# === LOGS ===
+*.log
+
+# === COVERAGE ===
+coverage/
+
+# === BACKUPS ===
+*.bak
+*.backup
+
+# === OS ===
+.DS_Store
+Thumbs.db

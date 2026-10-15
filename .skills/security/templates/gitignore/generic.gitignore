@@ -1,0 +1,78 @@
+# Generic - Security Skill .gitignore template
+# Works for any project. Applied when no specific stack is detected.
+
+# === ENVIRONMENT & SECRETS ===
+.env
+.env.local
+.env.development
+.env.staging
+.env.production
+.env.test
+.env.*.local
+.env.backup
+*.env
+
+# === KEYS & CERTIFICATES ===
+*.key
+*.pem
+*.p12
+*.pfx
+*.cert
+*.crt
+*.csr
+*.der
+id_rsa
+id_rsa.pub
+*.gpg
+*.asc
+secrets/
+.secrets/
+config/secrets*
+credentials.json
+service-account.json
+
+# === DATABASE ===
+*.sqlite
+*.sqlite3
+*.db
+dump.sql
+database.sql
+backup.sql
+*.sql.gz
+
+# === LOGS ===
+*.log
+logs/
+
+# === BACKUPS ===
+*.bak
+*.backup
+*.old
+*.orig
+*.copy
+*.swp
+*~
+
+# === BUILD OUTPUTS ===
+dist/
+build/
+out/
+.output/
+
+# === OS ===
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# === IDE ===
+.idea/
+.vscode/settings.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln

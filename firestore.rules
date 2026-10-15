@@ -13,13 +13,56 @@ service cloud.firestore {
         && request.auth.uid == get(/databases/$(database)/documents/shops/$(shopId)).data.ownerId;
     }
 
+    // Campos que decidem acesso pago ou apontam para cobrança no Asaas. Só o
+    // backend escreve: o webhook, pelo Admin SDK, que ignora estas regras.
+    //
+    // Sem esta trava o dono gravava `subscriptionStatus: 'active'` e
+    // `activeUntil: 2099` no próprio documento e usava o plano pago de graça;
+    // e, pior, gravava o `asaasSubscriptionId` de OUTRA estética e cancelava a
+    // assinatura dela pela Cloud Function, que confiava neste campo.
+    function camposDeCobranca() {
+      return [
+        'ownerId',
+        'subscriptionStatus',
+        'activeUntil',
+        'trialEndsAt',
+        'asaasSubscriptionId',
+        'lastPaymentId',
+        'lastPaymentAt',
+      ];
+    }
+
+    // O trial nasce pelo cliente, no cadastro — por isso não dá para proibir os
+    // campos aqui, só limitar o que eles podem valer. A janela de 8 dias cobre
+    // os 7 do trial com folga de fuso, e impede trial eterno.
+    function trialDeNascimentoValido() {
+      return request.resource.data.subscriptionStatus == 'trial'
+        && request.resource.data.activeUntil == null
+        && request.resource.data.trialEndsAt is timestamp
+        && request.resource.data.trialEndsAt > request.time
+        && request.resource.data.trialEndsAt < request.time + duration.value(8, 'd')
+        && !request.resource.data.keys().hasAny([
+             'asaasSubscriptionId', 'lastPaymentId', 'lastPaymentAt',
+           ]);
+    }
+
     // ── Shops ──────────────────────────────────────────────────────────────
-    // Leitura pública (mapa). Escrita só do dono. No create, o ownerId tem que
-    // ser o próprio uid (ninguém cria shop no nome de outro).
+    // Leitura por qualquer logado (o mapa fica atrás do login — ver o grupo
+    // autenticado do RootNavigator). Era `if true`, e o documento inteiro ia
+    // para a internet aberta: regra do Firestore não esconde campo, então o
+    // `asaasSubscriptionId` e o histórico de cobrança de TODAS as estéticas
+    // eram legíveis sem login.
+    //
+    // Escrita só do dono, e sem tocar nos campos de cobrança.
     match /shops/{shopId} {
-      allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && trialDeNascimentoValido();
+      allow update: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(camposDeCobranca());
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
 
       // Config do shop (horários, capacidade): cliente lê p/ montar os slots,
       // só o dono escreve.
@@ -126,6 +169,19 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isShopOwner(resource.data.shopId);
       allow write: if false;
+    }
+
+    // ── Vínculo com o Asaas ────────────────────────────────────────────────
+    // Fechado dos dois lados. Guarda o `asaasSubscriptionId` da estética, que é
+    // o que a Cloud Function usa para consultar e CANCELAR a assinatura.
+    //
+    // Enquanto esse id morava em shops/{shopId}, o dono podia gravar nele o id
+    // de outra estética e cancelar a assinatura alheia: a função conferia que o
+    // documento era dele, mas não que o id dentro do documento era dele.
+    // Guardar aqui tira o campo do alcance do cliente — o Admin SDK das
+    // Functions ignora estas regras.
+    match /shopBilling/{shopId} {
+      allow read, write: if false;
     }
   }
 }

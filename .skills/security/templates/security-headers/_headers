@@ -1,0 +1,25 @@
+# Cloudflare Pages / Netlify _headers file
+# Security Skill — security headers template
+
+/*
+  X-DNS-Prefetch-Control: on
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  Cross-Origin-Resource-Policy: same-origin
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self';
+
+# Cache policy for static assets
+/static/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# No cache for API and auth
+/api/*
+  Cache-Control: no-store, no-cache, private
+
+/auth/*
+  Cache-Control: no-store, no-cache, private
