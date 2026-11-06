@@ -280,11 +280,19 @@ jobs:
       - name: Configura Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          build-root-directory: android
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
       - name: Instala dependencias
         run: npm ci
+
+      - name: Instala CMake 3.31.6
+        shell: bash
+        run: |
+          SDKMANAGER="${ANDROID_SDK_ROOT:-$ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$(which sdkmanager)"
+          fi
+          "$SDKMANAGER" "cmake;3.31.6" || (set +o pipefail; yes 2>/dev/null | "$SDKMANAGER" "cmake;3.31.6")
 
       - name: Prepara google-services.json temporario
         shell: bash
