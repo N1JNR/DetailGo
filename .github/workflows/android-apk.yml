@@ -51,7 +51,7 @@ jobs:
           if [ ! -x "$SDKMANAGER" ]; then
             SDKMANAGER="$(which sdkmanager)"
           fi
-          yes | "$SDKMANAGER" "cmake;3.31.6"
+          "$SDKMANAGER" "cmake;3.31.6" || (set +o pipefail; yes 2>/dev/null | "$SDKMANAGER" "cmake;3.31.6")
 
       - name: Prepara google-services.json temporario
         shell: bash
