@@ -77,6 +77,8 @@ export default function ProfileScreen() {
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [checkingConfirm, setCheckingConfirm] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [excluirAberto, setExcluirAberto] = useState(false);
+  const [senhaExclusao, setSenhaExclusao] = useState('');
   const [success, setSuccess] = useState<{ title: string; message: string } | null>(null);
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -427,7 +429,18 @@ export default function ProfileScreen() {
    * precisa resolver isso antes. Nesse caso o retorno é instrução, não erro —
    * por isso a mensagem vem do próprio impedimento, já dizendo o que fazer.
    */
+  /** Fecha o bloco e descarta a senha do estado da tela. */
+  const cancelarExclusao = () => {
+    setExcluirAberto(false);
+    setSenhaExclusao('');
+  };
+
   const handleDeleteAccount = () => {
+    if (!senhaExclusao) {
+      showError('Digite sua senha para confirmar');
+      return;
+    }
+
     showConfirm({
       title: 'Excluir conta',
       message:
@@ -437,7 +450,7 @@ export default function ProfileScreen() {
       onConfirm: async () => {
         setExcluindo(true);
         try {
-          const r = await requestAccountDeletion();
+          const r = await requestAccountDeletion(senhaExclusao);
 
           if (r.ok) {
             showSuccess('Sua conta e seus dados foram apagados.', {
@@ -739,14 +752,55 @@ export default function ProfileScreen() {
               />
               <ThemeSettingsRow isLight={isLight} onToggle={toggleTheme} />
               <SettingsRow label="Sair" onPress={handleSignOut} danger />
-              <SettingsRow
-                testID="excluir-conta"
-                label={excluindo ? 'Excluindo...' : 'Excluir conta'}
-                onPress={handleDeleteAccount}
-                disabled={excluindo}
-                danger
-                last
-              />
+              {!excluirAberto ? (
+                <SettingsRow
+                  testID="excluir-conta"
+                  label="Excluir conta"
+                  onPress={() => setExcluirAberto(true)}
+                  danger
+                  last
+                />
+              ) : (
+                <View style={styles.editBlock}>
+                  {/* A senha é a prova de identidade. O servidor confere o
+                      mesmo pelo auth_time do token — sem ela, um token vazado
+                      apagaria a conta. */}
+                  <ProfileTextInput
+                    label="Senha atual"
+                    value={senhaExclusao}
+                    onChangeText={setSenhaExclusao}
+                    placeholder="Confirme sua senha para excluir"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!excluindo}
+                    floating
+                  />
+                  <View style={styles.editActions}>
+                    <TouchableOpacity
+                      testID="cancelar-exclusao"
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={cancelarExclusao}
+                      disabled={excluindo}
+                    >
+                      <X size={16} color={D.ink} />
+                      <Text style={styles.actionText}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="excluir-conta"
+                      style={[styles.actionButton, styles.confirmButton]}
+                      onPress={handleDeleteAccount}
+                      disabled={excluindo}
+                    >
+                      {excluindo ? (
+                        <ActivityIndicator size="small" color={D.onPrimary} />
+                      ) : (
+                        <Text style={styles.confirmText}>Excluir conta</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.footerSpace} />

@@ -1,7 +1,19 @@
 const mockGetIdToken = jest.fn();
-const mockUsuario = { getIdToken: mockGetIdToken } as { getIdToken: jest.Mock } | null;
-const mockAuth = { currentUser: mockUsuario };
-jest.mock('@react-native-firebase/auth', () => ({ getAuth: () => mockAuth }));
+const mockReautenticar = jest.fn();
+const mockCredential = jest.fn((email: string, senha: string) => ({ email, senha }));
+
+const mockUsuario = {
+  email: 'jorge@detailgo.com' as string | null,
+  getIdToken: mockGetIdToken,
+  reauthenticateWithCredential: mockReautenticar,
+};
+const mockAuth = { currentUser: mockUsuario as typeof mockUsuario | null };
+
+jest.mock('@react-native-firebase/auth', () => ({
+  __esModule: true,
+  default: { EmailAuthProvider: { credential: (...a: [string, string]) => mockCredential(...a) } },
+  getAuth: () => mockAuth,
+}));
 
 import { requestAccountDeletion } from './deleteAccount.service';
 
@@ -15,135 +27,171 @@ function responder(status: number, corpo: unknown) {
   } as Response;
 }
 
+const buscar = () => globalThis.fetch as jest.Mock;
+
 describe('requestAccountDeletion', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockAuth.currentUser = mockUsuario;
+    mockUsuario.email = 'jorge@detailgo.com';
     mockGetIdToken.mockResolvedValue('token-123');
-    global.fetch = jest.fn().mockResolvedValue(responder(200, { excluida: true }));
+    mockReautenticar.mockResolvedValue(undefined);
+    globalThis.fetch = jest.fn().mockResolvedValue(responder(200, { excluida: true }));
   });
 
-  it('chama a function com o token no cabeçalho', async () => {
-    await requestAccountDeletion();
+  describe('prova de identidade', () => {
+    // O deleteUser do Admin SDK não pede login recente — isso só vale no
+    // cliente. Sem reautenticar, um token vazado apagaria a conta.
+    it('reautentica com a senha antes de pedir a exclusão', async () => {
+      await requestAccountDeletion('senha123');
 
-    expect(global.fetch).toHaveBeenCalledWith(
-      URL_ESPERADA,
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({ Authorization: 'Bearer token-123' }),
-      }),
-    );
-  });
+      expect(mockCredential).toHaveBeenCalledWith('jorge@detailgo.com', 'senha123');
+      expect(mockReautenticar).toHaveBeenCalledWith({
+        email: 'jorge@detailgo.com',
+        senha: 'senha123',
+      });
+    });
 
-  // Token em cache pode estar revogado, e a function confere revogação. Falhar
-  // por token velho não é culpa de quem está pedindo.
-  it('força token novo em vez de usar o do cache', async () => {
-    await requestAccountDeletion();
+    it('não chama a function quando a senha está errada', async () => {
+      mockReautenticar.mockRejectedValue({ code: 'auth/wrong-password' });
 
-    expect(mockGetIdToken).toHaveBeenCalledWith(true);
-  });
+      const r = await requestAccountDeletion('errada');
 
-  it('devolve ok quando a exclusão acontece', async () => {
-    await expect(requestAccountDeletion()).resolves.toEqual({ ok: true });
-  });
+      expect(r).toEqual({ ok: false, message: 'Senha incorreta.' });
+      expect(buscar()).not.toHaveBeenCalled();
+    });
 
-  it('recusa sem sessão, sem nem chamar a rede', async () => {
-    mockAuth.currentUser = null;
+    it.each([
+      ['auth/wrong-password', 'Senha incorreta.'],
+      ['auth/invalid-credential', 'Senha incorreta.'],
+      ['auth/too-many-requests', 'Muitas tentativas. Aguarde alguns minutos.'],
+      ['auth/network-request-failed', 'Sem conexão. Tente de novo.'],
+      ['auth/desconhecido', 'Não foi possível confirmar sua senha.'],
+    ])('traduz %s', async (code, mensagem) => {
+      mockReautenticar.mockRejectedValue({ code });
 
-    const r = await requestAccountDeletion();
+      expect(await requestAccountDeletion('x')).toEqual({ ok: false, message: mensagem });
+    });
 
-    expect(r).toEqual({ ok: false, message: 'Sessão expirada. Entre novamente.' });
-    expect(global.fetch).not.toHaveBeenCalled();
-  });
+    // Token em cache não carrega o auth_time recente que o servidor exige.
+    it('pede token novo depois de reautenticar', async () => {
+      await requestAccountDeletion('senha123');
 
-  // 409 é o servidor dizendo o que resolver antes, não falha. A tela mostra
-  // isso como instrução, então os impedimentos têm que atravessar inteiros.
-  it('devolve os impedimentos do 409', async () => {
-    const impedimentos = [
-      { codigo: 'assinatura_ativa', mensagem: 'Cancele a assinatura antes.' },
-      { codigo: 'agendamentos_futuros', mensagem: 'Há 2 agendamentos futuros.' },
-    ];
-    (global.fetch as jest.Mock).mockResolvedValue(responder(409, { impedimentos }));
+      expect(mockGetIdToken).toHaveBeenCalledWith(true);
+    });
 
-    const r = await requestAccountDeletion();
+    it('recusa sem sessão, sem nem reautenticar', async () => {
+      mockAuth.currentUser = null;
 
-    expect(r).toEqual({ ok: false, impedimentos });
-  });
+      const r = await requestAccountDeletion('senha123');
 
-  it('devolve lista vazia quando o 409 vem sem impedimentos', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(responder(409, {}));
+      expect(r).toEqual({ ok: false, message: 'Sessão expirada. Entre novamente.' });
+      expect(mockReautenticar).not.toHaveBeenCalled();
+      expect(buscar()).not.toHaveBeenCalled();
+    });
 
-    expect(await requestAccountDeletion()).toEqual({ ok: false, impedimentos: [] });
-  });
+    // Conta criada por provedor sem e-mail não tem como reautenticar por senha.
+    it('recusa quando a conta não tem e-mail', async () => {
+      mockUsuario.email = null;
 
-  it('devolve lista vazia quando o corpo do 409 não é JSON', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 409,
-      json: async () => {
-        throw new Error('corpo vazio');
-      },
-    } as unknown as Response);
-
-    expect(await requestAccountDeletion()).toEqual({ ok: false, impedimentos: [] });
-  });
-
-  it('repassa a mensagem de erro do servidor', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(responder(500, { error: 'Falhou no servidor.' }));
-
-    expect(await requestAccountDeletion()).toEqual({
-      ok: false,
-      message: 'Falhou no servidor.',
+      expect(await requestAccountDeletion('senha123')).toMatchObject({ ok: false });
+      expect(mockReautenticar).not.toHaveBeenCalled();
     });
   });
 
-  // Mensagem vazia é tão inútil quanto ausente: `||` e não `??`, senão o dono
-  // leva um aviso em branco.
-  it('cai no recado genérico quando o erro vem vazio', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(responder(500, { error: '' }));
+  describe('chamada ao servidor', () => {
+    it('manda o token no cabeçalho', async () => {
+      await requestAccountDeletion('senha123');
 
-    expect(await requestAccountDeletion()).toEqual({
-      ok: false,
-      message: 'Não foi possível excluir a conta agora.',
+      expect(buscar()).toHaveBeenCalledWith(
+        URL_ESPERADA,
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({ Authorization: 'Bearer token-123' }),
+        }),
+      );
     });
-  });
 
-  it('cai no recado genérico quando o erro não traz mensagem', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue(responder(503, {}));
-
-    expect(await requestAccountDeletion()).toMatchObject({
-      message: 'Não foi possível excluir a conta agora.',
+    it('devolve ok quando a exclusão acontece', async () => {
+      await expect(requestAccountDeletion('senha123')).resolves.toEqual({ ok: true });
     });
-  });
 
-  it('cai no recado genérico quando o corpo do erro não é JSON', async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      ok: false,
-      status: 500,
-      json: async () => {
-        throw new Error('corpo vazio');
-      },
-    } as unknown as Response);
+    // 409 é o servidor dizendo o que resolver antes, não falha.
+    it('devolve os impedimentos do 409', async () => {
+      const impedimentos = [
+        { codigo: 'assinatura_ativa', mensagem: 'Cancele a assinatura antes.' },
+        { codigo: 'agendamentos_futuros', mensagem: 'Há 2 agendamentos futuros.' },
+      ];
+      buscar().mockResolvedValue(responder(409, { impedimentos }));
 
-    expect(await requestAccountDeletion()).toEqual({
-      ok: false,
-      message: 'Não foi possível excluir a conta agora.',
+      expect(await requestAccountDeletion('senha123')).toEqual({ ok: false, impedimentos });
     });
-  });
 
-  it('não estoura quando a rede cai', async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error('sem rede'));
+    it('devolve lista vazia quando o 409 vem sem impedimentos', async () => {
+      buscar().mockResolvedValue(responder(409, {}));
 
-    expect(await requestAccountDeletion()).toEqual({
-      ok: false,
-      message: 'Não foi possível excluir a conta agora.',
+      expect(await requestAccountDeletion('senha123')).toEqual({ ok: false, impedimentos: [] });
     });
-  });
 
-  it('não estoura quando o token falha', async () => {
-    mockGetIdToken.mockRejectedValue(new Error('token'));
+    it('devolve lista vazia quando o corpo do 409 não é JSON', async () => {
+      buscar().mockResolvedValue({
+        ok: false,
+        status: 409,
+        json: async () => {
+          throw new Error('corpo vazio');
+        },
+      } as unknown as Response);
 
-    expect(await requestAccountDeletion()).toMatchObject({ ok: false });
-    expect(global.fetch).not.toHaveBeenCalled();
+      expect(await requestAccountDeletion('senha123')).toEqual({ ok: false, impedimentos: [] });
+    });
+
+    it('repassa a mensagem de erro do servidor', async () => {
+      buscar().mockResolvedValue(responder(500, { error: 'Falhou no servidor.' }));
+
+      expect(await requestAccountDeletion('senha123')).toEqual({
+        ok: false,
+        message: 'Falhou no servidor.',
+      });
+    });
+
+    // Mensagem vazia é tão inútil quanto ausente: `||` e não `??`.
+    it('cai no recado genérico quando o erro vem vazio', async () => {
+      buscar().mockResolvedValue(responder(500, { error: '' }));
+
+      expect(await requestAccountDeletion('senha123')).toEqual({
+        ok: false,
+        message: 'Não foi possível excluir a conta agora.',
+      });
+    });
+
+    it('cai no recado genérico quando o corpo do erro não é JSON', async () => {
+      buscar().mockResolvedValue({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error('corpo vazio');
+        },
+      } as unknown as Response);
+
+      expect(await requestAccountDeletion('senha123')).toMatchObject({
+        message: 'Não foi possível excluir a conta agora.',
+      });
+    });
+
+    it('não estoura quando a rede cai', async () => {
+      buscar().mockRejectedValue(new Error('sem rede'));
+
+      expect(await requestAccountDeletion('senha123')).toEqual({
+        ok: false,
+        message: 'Não foi possível excluir a conta agora.',
+      });
+    });
+
+    it('não estoura quando o token falha', async () => {
+      mockGetIdToken.mockRejectedValue(new Error('token'));
+
+      expect(await requestAccountDeletion('senha123')).toMatchObject({ ok: false });
+      expect(buscar()).not.toHaveBeenCalled();
+    });
   });
 });

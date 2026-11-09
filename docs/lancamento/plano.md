@@ -91,9 +91,16 @@ app é reprovado na revisão — e isto não estava em lugar nenhum deste plano 
 exclusão nenhum.
 
 - [x] Função `deleteAccount` no servidor, com as travas de dono
-- [x] Caminho dentro do app, no Perfil, com confirmação destrutiva
+- [x] Caminho dentro do app, no Perfil, com senha e confirmação destrutiva
 - [ ] **URL de solicitação de exclusão**, acessível sem instalar o app —
       declarada no Console junto da política de privacidade
+
+> **A senha não é cerimônia.** O `deleteUser` do Admin SDK **não** exige login
+> recente — isso só vale no cliente. Sem reautenticar, um token vazado (válido
+> por até uma hora) apagaria a conta, enquanto **trocar o e-mail** no app já
+> pedia a senha. A ação mais destrutiva não podia exigir menos prova que a menos
+> destrutiva. A trava existe nos dois lados: o app reautentica, e o servidor
+> confere o `auth_time` do token.
 
 > **O que acontece com os dados.** Cliente sempre pode sair. Os agendamentos
 > dele permanecem no histórico da estética **sem o nome**: o `customerUid` fica

@@ -1,4 +1,4 @@
-import { getAuth } from '@react-native-firebase/auth';
+import auth, { getAuth } from '@react-native-firebase/auth';
 
 const BASE = 'https://us-central1-magic-auto.cloudfunctions.net';
 
@@ -13,23 +13,49 @@ export type ResultadoDaExclusao =
   | { ok: false; impedimentos: Impedimento[] }
   | { ok: false; message: string };
 
+/** Traduz o erro do Firebase na frase que a pessoa precisa ler. */
+function motivoDaReautenticacao(codigo: unknown): string {
+  switch (codigo) {
+    case 'auth/wrong-password':
+    case 'auth/invalid-credential':
+      return 'Senha incorreta.';
+    case 'auth/too-many-requests':
+      return 'Muitas tentativas. Aguarde alguns minutos.';
+    case 'auth/network-request-failed':
+      return 'Sem conexão. Tente de novo.';
+    default:
+      return 'Não foi possível confirmar sua senha.';
+  }
+}
+
 /**
- * Pede ao servidor a exclusão da conta e dos dados.
+ * Pede a exclusão da conta e dos dados.
  *
- * Roda no servidor porque apagar a conta de Auth e tocar nos agendamentos da
- * estética exige Admin SDK — as regras não deixam o cliente fazer nem um nem
- * outro.
+ * Exige a senha porque o `deleteUser` do Admin SDK **não** pede login recente —
+ * isso só vale no cliente. Sem reautenticar, um token vazado (válido por até
+ * uma hora) apagaria a conta, enquanto trocar o e-mail no app pede a senha. A
+ * ação mais destrutiva não pode exigir menos prova que a menos destrutiva.
  *
- * O 409 não é falha: é o servidor dizendo o que precisa ser resolvido antes,
- * e a tela mostra isso como instrução, não como erro.
+ * O servidor confere o mesmo pelo `auth_time` do token, então a trava existe
+ * dos dois lados: aqui para dar a senha, lá para não aceitar quem não deu.
+ *
+ * O 409 não é falha: é o servidor dizendo o que resolver antes, e a tela mostra
+ * isso como instrução.
  */
-export async function requestAccountDeletion(): Promise<ResultadoDaExclusao> {
+export async function requestAccountDeletion(senha: string): Promise<ResultadoDaExclusao> {
   const user = getAuth().currentUser;
-  if (!user) return { ok: false, message: 'Sessão expirada. Entre novamente.' };
+  if (!user?.email) return { ok: false, message: 'Sessão expirada. Entre novamente.' };
 
   try {
-    // `true` força token novo: a function verifica revogação, e um token velho
-    // em cache seria recusado por algo que não é culpa de quem está pedindo.
+    const credencial = auth.EmailAuthProvider.credential(user.email, senha);
+    await user.reauthenticateWithCredential(credencial);
+  } catch (e: any) {
+    return { ok: false, message: motivoDaReautenticacao(e?.code) };
+  }
+
+  try {
+    // Token novo depois de reautenticar: é ele que carrega o `auth_time`
+    // recente que o servidor exige.
     const idToken = await user.getIdToken(true);
 
     const resposta = await fetch(`${BASE}/deleteAccount`, {
