@@ -51,6 +51,11 @@ jest.mock('@shared/services/userPhoto.service', () => ({
   uploadProfilePhoto: (...a: unknown[]) => mockEnviarFoto(...a),
 }));
 
+const mockPedirExclusao = jest.fn();
+jest.mock('../services/deleteAccount.service', () => ({
+  requestAccountDeletion: () => mockPedirExclusao(),
+}));
+
 const mockSignOut = jest.fn();
 let mockMeAtual: Record<string, unknown> | null = null;
 jest.mock('@features/auth', () => ({
@@ -876,6 +881,157 @@ describe('ProfileScreen', () => {
         'Fale com a equipe DetailGo pelo suporte.',
         { title: 'Suporte' },
       );
+    });
+  });
+
+  // Exigência do Google Play para todo app que permite criar conta. É a ação
+  // mais destrutiva da tela, e a única sem volta.
+  describe('exclusão de conta', () => {
+    beforeEach(() => {
+      mockPedirExclusao.mockReset();
+      mockPedirExclusao.mockResolvedValue({ ok: true });
+    });
+
+    async function confirmar() {
+      await act(async () => {
+        await ultimaConfirmacao?.onConfirm();
+      });
+    }
+
+    it('oferece a opção na tela', () => {
+      renderizar();
+
+      expect(screen.getByTestId('excluir-conta')).toBeTruthy();
+      expect(screen.getByText('Excluir conta')).toBeTruthy();
+    });
+
+    it('pede confirmação destrutiva avisando que não tem volta', () => {
+      renderizar();
+
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+
+      expect(ultimaConfirmacao?.destructive).toBe(true);
+      expect(ultimaConfirmacao?.message).toMatch(/não pode ser desfeito/i);
+      expect(mockPedirExclusao).not.toHaveBeenCalled();
+    });
+
+    // Quem exclui precisa saber que o agendamento não some do lado da estética,
+    // senão descobre depois e se sente enganado.
+    it('explica que o histórico da estética continua, sem o nome', () => {
+      renderizar();
+
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+
+      expect(ultimaConfirmacao?.message).toMatch(/histórico da estética, sem o seu nome/i);
+    });
+
+    it('só chama o servidor depois da confirmação', async () => {
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+
+      await confirmar();
+
+      expect(mockPedirExclusao).toHaveBeenCalledTimes(1);
+    });
+
+    it('avisa e encerra a sessão quando dá certo', async () => {
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(ultimoSucesso?.options?.title).toBe('Conta excluída');
+      expect(mockSignOut).not.toHaveBeenCalled();
+
+      await fecharSucesso();
+      expect(mockSignOut).toHaveBeenCalled();
+    });
+
+    // 409 do servidor não é erro: é instrução. O dono precisa saber o que
+    // resolver, não só que falhou.
+    it('mostra os impedimentos como instrução', async () => {
+      mockPedirExclusao.mockResolvedValue({
+        ok: false,
+        impedimentos: [
+          { codigo: 'assinatura_ativa', mensagem: 'Cancele a assinatura antes.' },
+          { codigo: 'agendamentos_futuros', mensagem: 'Há 2 agendamentos futuros.' },
+        ],
+      });
+
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(mockShowError).toHaveBeenCalledWith(
+        'Cancele a assinatura antes.\n\nHá 2 agendamentos futuros.',
+        { title: 'Resolva isto antes' },
+      );
+      expect(mockSignOut).not.toHaveBeenCalled();
+    });
+
+    it('mostra o motivo quando a exclusão falha por outro motivo', async () => {
+      mockPedirExclusao.mockResolvedValue({ ok: false, message: 'Sessão expirada.' });
+
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(mockShowError).toHaveBeenCalledWith('Sessão expirada.');
+      expect(mockSignOut).not.toHaveBeenCalled();
+    });
+
+    // Lista vazia tem que cair no recado genérico. Sem a checagem de tamanho,
+    // o dono levava um aviso EM BRANCO sob o título "Resolva isto antes" — sem
+    // nada para resolver e sem saber o que fazer.
+    it('cai no recado genérico quando a lista de impedimentos vem vazia', async () => {
+      mockPedirExclusao.mockResolvedValue({ ok: false, impedimentos: [] });
+
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(mockShowError).toHaveBeenCalledWith('Não foi possível excluir a conta agora.');
+      expect(mockShowError).not.toHaveBeenCalledWith('', expect.anything());
+      expect(mockSignOut).not.toHaveBeenCalled();
+    });
+
+    // Dois toques enquanto o servidor responde seriam dois pedidos de exclusão.
+    it('trava o botão enquanto o pedido está em curso', async () => {
+      let liberar: (v: unknown) => void = () => {};
+      mockPedirExclusao.mockReturnValue(new Promise(r => (liberar = r)));
+
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      const pendente = ultimaConfirmacao?.onConfirm();
+
+      await waitFor(() => expect(screen.getByText('Excluindo...')).toBeTruthy());
+
+      // Tocar de novo não pode nem abrir o diálogo: afirmar só que o serviço
+      // não foi chamado duas vezes passaria sem o `disabled`, porque o toque
+      // abre a confirmação e não chama o serviço direto.
+      const confirmacoesAntes = mockFeedback.showConfirm.mock.calls.length;
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+
+      expect(mockFeedback.showConfirm.mock.calls.length).toBe(confirmacoesAntes);
+      expect(mockPedirExclusao).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        liberar({ ok: true });
+        await pendente;
+      });
+    });
+
+    it('destrava o botão depois de uma falha, para poder tentar de novo', async () => {
+      mockPedirExclusao.mockResolvedValue({ ok: false, message: 'Sem rede.' });
+
+      renderizar();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(screen.getByText('Excluir conta')).toBeTruthy();
+      fireEvent.press(screen.getByTestId('excluir-conta'));
+      await confirmar();
+
+      expect(mockPedirExclusao).toHaveBeenCalledTimes(2);
     });
   });
 });

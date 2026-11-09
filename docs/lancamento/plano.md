@@ -83,7 +83,30 @@ funcionar em produção** se a nova SHA-1 não for cadastrada antes.
 - [x] Cadastrar as mesmas SHA-1 no Firebase (o app `com.jnrpalma.detailgo` não
       tinha nenhuma cadastrada)
 
-### 1.3 Play Console
+### 1.3 Exclusão de conta
+
+Exigência do Google Play para **todo app que permite criar conta**. Sem isso o
+app é reprovado na revisão — e isto não estava em lugar nenhum deste plano até
+09/11/2026, quando a varredura do código mostrou que não havia caminho de
+exclusão nenhum.
+
+- [x] Função `deleteAccount` no servidor, com as travas de dono
+- [x] Caminho dentro do app, no Perfil, com confirmação destrutiva
+- [ ] **URL de solicitação de exclusão**, acessível sem instalar o app —
+      declarada no Console junto da política de privacidade
+
+> **O que acontece com os dados.** Cliente sempre pode sair. Os agendamentos
+> dele permanecem no histórico da estética **sem o nome**: o `customerUid` fica
+> como código opaco, porque `users/{uid}` e a conta de Auth somem e ele deixa de
+> apontar para alguém. Apagar o agendamento inteiro mudaria o faturamento já
+> realizado da estética, que é dado dela, não dele.
+>
+> **Dono é barrado** enquanto tiver assinatura viva no Asaas (sair deixaria a
+> cobrança correndo numa conta que não existe) ou agendamento futuro (apagar a
+> loja por baixo de quem tem horário marcado). A recusa explica o que resolver —
+> o Google exige poder **solicitar** exclusão, não exclusão incondicional.
+
+### 1.4 Play Console
 
 - [ ] Conta de desenvolvedor criada e taxa paga
 - [ ] Ficha da loja: nome, descrição curta e longa, ícone, capturas de tela

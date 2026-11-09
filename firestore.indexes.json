@@ -4,43 +4,95 @@
       "collectionGroup": "shops",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isVisibleOnMap", "order": "ASCENDING" },
-        { "fieldPath": "subscriptionStatus", "order": "ASCENDING" },
-        { "fieldPath": "trialEndsAt", "order": "ASCENDING" }
+        {
+          "fieldPath": "isVisibleOnMap",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "subscriptionStatus",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "trialEndsAt",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "shops",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "isVisibleOnMap", "order": "ASCENDING" },
-        { "fieldPath": "geohash", "order": "ASCENDING" }
+        {
+          "fieldPath": "isVisibleOnMap",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "geohash",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "appointments",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "startAtMs", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startAtMs",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "appointments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "startAtMs", "order": "ASCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startAtMs",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "appointments",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "status", "order": "ASCENDING" },
-        { "fieldPath": "startAtMs", "order": "DESCENDING" }
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startAtMs",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],
-  "fieldOverrides": []
+  "fieldOverrides": [
+    {
+      "collectionGroup": "appointments",
+      "fieldPath": "customerUid",
+      "indexes": [
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "DESCENDING",
+          "queryScope": "COLLECTION"
+        },
+        {
+          "order": "ASCENDING",
+          "queryScope": "COLLECTION_GROUP"
+        }
+      ]
+    }
+  ]
 }

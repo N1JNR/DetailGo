@@ -38,6 +38,7 @@ import { formatUtils } from '@shared/utils/format.utils';
 import { uploadProfilePhoto } from '@shared/services/userPhoto.service';
 import SuccessModal from '@shared/components/SuccessModal';
 import { useAuth, useMeStore } from '@features/auth';
+import { requestAccountDeletion } from '../services/deleteAccount.service';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -75,6 +76,7 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [checkingConfirm, setCheckingConfirm] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
   const [success, setSuccess] = useState<{ title: string; message: string } | null>(null);
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -417,6 +419,50 @@ export default function ProfileScreen() {
     });
   };
 
+  /**
+   * Exclusão de conta e dados, exigida pelo Google Play de todo app que deixa
+   * criar conta.
+   *
+   * O servidor ainda pode recusar: dono com assinatura viva ou horário marcado
+   * precisa resolver isso antes. Nesse caso o retorno é instrução, não erro —
+   * por isso a mensagem vem do próprio impedimento, já dizendo o que fazer.
+   */
+  const handleDeleteAccount = () => {
+    showConfirm({
+      title: 'Excluir conta',
+      message:
+        'Isto apaga sua conta e seus dados, e não pode ser desfeito.\n\nSeus agendamentos passados continuam no histórico da estética, sem o seu nome.',
+      confirmLabel: 'Excluir',
+      destructive: true,
+      onConfirm: async () => {
+        setExcluindo(true);
+        try {
+          const r = await requestAccountDeletion();
+
+          if (r.ok) {
+            showSuccess('Sua conta e seus dados foram apagados.', {
+              title: 'Conta excluída',
+              primaryLabel: 'Ok',
+              onClose: () => signOut(),
+            });
+            return;
+          }
+
+          if ('impedimentos' in r && r.impedimentos.length > 0) {
+            showError(r.impedimentos.map(i => i.mensagem).join('\n\n'), {
+              title: 'Resolva isto antes',
+            });
+            return;
+          }
+
+          showError('message' in r ? r.message : 'Não foi possível excluir a conta agora.');
+        } finally {
+          setExcluindo(false);
+        }
+      },
+    });
+  };
+
   const handleSignOut = () => {
     showConfirm({
       title: 'Sair da conta',
@@ -692,7 +738,15 @@ export default function ProfileScreen() {
                 }
               />
               <ThemeSettingsRow isLight={isLight} onToggle={toggleTheme} />
-              <SettingsRow label="Sair" onPress={handleSignOut} danger last />
+              <SettingsRow label="Sair" onPress={handleSignOut} danger />
+              <SettingsRow
+                testID="excluir-conta"
+                label={excluindo ? 'Excluindo...' : 'Excluir conta'}
+                onPress={handleDeleteAccount}
+                disabled={excluindo}
+                danger
+                last
+              />
             </View>
 
             <View style={styles.footerSpace} />
@@ -781,19 +835,25 @@ function SettingsRow({
   onPress,
   danger,
   last,
+  disabled,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   danger?: boolean;
   last?: boolean;
+  disabled?: boolean;
+  testID?: string;
 }) {
   const { colors: D } = useAppTheme();
   const styles = useMemo(() => createStyles(D), [D]);
 
   return (
     <TouchableOpacity
-      style={[styles.settingsRow, !last && styles.rowBorder]}
+      testID={testID}
+      style={[styles.settingsRow, !last && styles.rowBorder, disabled && styles.disabled]}
       onPress={onPress}
+      disabled={disabled}
       activeOpacity={0.75}
     >
       <Text style={[styles.settingsLabel, danger && styles.dangerText]}>{label}</Text>
