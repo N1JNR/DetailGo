@@ -51,7 +51,7 @@ describe('buildCheckoutRequest', () => {
     shopId: 'shop_1',
     shopName: 'Estetica A',
     config: resolveAsaasConfig(CHAVE_PRODUCAO),
-    returnUrl: 'https://detailgo.app/assinatura',
+    returnUrl: 'https://detailgo.com.br/assinatura',
     now: new Date('2026-08-27T12:00:00Z'),
   };
 
