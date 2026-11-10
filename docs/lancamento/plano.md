@@ -120,8 +120,19 @@ exclusão nenhum.
 - [ ] Classificação indicativa
 - [x] **Política de privacidade** publicada: <https://detailgo.com.br/privacidade/>
       (repositório `N1JNR/detailgo-site`)
-- [ ] Formulário de Segurança de Dados: declarar localização, dados de
-      pagamento, identificadores e dados de conta
+- [ ] Formulário de Segurança de Dados — **respostas prontas** em
+      [`seguranca-de-dados.md`](./seguranca-de-dados.md), lidas do código e com
+      o arquivo que justifica cada uma. Falta só transcrever no Console
+
+> **Duas respostas contrariam o instinto**, e são as que mais reprovam:
+>
+> - **Informações de pagamento: NÃO.** Cartão e CPF nunca passam pelo app — o
+>   checkout abre no site do Asaas. Marcar "sim" aqui declara uma coleta que não
+>   existe.
+> - **Localização aproximada: NÃO.** O cliente tem o GPS lido, mas a distância é
+>   calculada no aparelho; a posição não sai dele. Só a localização **precisa**
+>   é coletada, e apenas do dono, para pôr a estética no mapa.
+
 - [ ] Faixa de **teste interno** com o AAB assinado
 
 > O teste interno não é formalidade: é o que valida a cadeia
