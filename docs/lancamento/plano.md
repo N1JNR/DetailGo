@@ -92,8 +92,8 @@ exclusão nenhum.
 
 - [x] Função `deleteAccount` no servidor, com as travas de dono
 - [x] Caminho dentro do app, no Perfil, com senha e confirmação destrutiva
-- [ ] **URL de solicitação de exclusão**, acessível sem instalar o app —
-      declarada no Console junto da política de privacidade
+- [x] **URL de solicitação de exclusão**, acessível sem instalar o app:
+      <https://detailgo.com.br/excluir-conta/>
 
 > **A senha não é cerimônia.** O `deleteUser` do Admin SDK **não** exige login
 > recente — isso só vale no cliente. Sem reautenticar, um token vazado (válido
@@ -118,9 +118,21 @@ exclusão nenhum.
 - [ ] Conta de desenvolvedor criada e taxa paga
 - [ ] Ficha da loja: nome, descrição curta e longa, ícone, capturas de tela
 - [ ] Classificação indicativa
-- [ ] **Política de privacidade** publicada numa URL acessível — obrigatória
-- [ ] Formulário de Segurança de Dados: declarar localização, dados de
-      pagamento, identificadores e dados de conta
+- [x] **Política de privacidade** publicada: <https://detailgo.com.br/privacidade/>
+      (repositório `N1JNR/detailgo-site`)
+- [ ] Formulário de Segurança de Dados — **respostas prontas** em
+      [`seguranca-de-dados.md`](./seguranca-de-dados.md), lidas do código e com
+      o arquivo que justifica cada uma. Falta só transcrever no Console
+
+> **Duas respostas contrariam o instinto**, e são as que mais reprovam:
+>
+> - **Informações de pagamento: NÃO.** Cartão e CPF nunca passam pelo app — o
+>   checkout abre no site do Asaas. Marcar "sim" aqui declara uma coleta que não
+>   existe.
+> - **Localização aproximada: NÃO.** O cliente tem o GPS lido, mas a distância é
+>   calculada no aparelho; a posição não sai dele. Só a localização **precisa**
+>   é coletada, e apenas do dono, para pôr a estética no mapa.
+
 - [ ] Faixa de **teste interno** com o AAB assinado
 
 > O teste interno não é formalidade: é o que valida a cadeia
@@ -163,6 +175,20 @@ diff voltou vazia — ela só olha o que mudou, e estas três eram de desenho.
 > agenda sem pagar. Fechar isso é redesenho das regras, registrado em
 > `memory-security.md` como risco aceito até o beta aberto. O que esta mudança
 > fez foi tirar o caminho fácil.
+
+### 2.0 Retorno do pagamento
+
+- [x] `RETURN_URL` apontando para uma página que existe
+
+> **Quem pagava caía num 404.** O checkout usava `https://detailgo.app/assinatura`
+> como retorno de sucesso, cancelamento e expiração. O `detailgo.app` **não é
+> nosso** — o domínio do site é `detailgo.com.br` — e `/assinatura` não existia
+> em nenhum dos dois. Em sandbox passou despercebido porque o app volta pelo
+> deep link; em produção quem abre é o navegador, logo depois de pagar.
+>
+> A página foi criada no repositório do site e serve os três retornos, porque
+> ela **não é prova de pagamento**: quem confirma é o webhook. Dizer "pagamento
+> aprovado" ali mentiria para quem cancelou.
 
 ### 2.1 Asaas em produção
 

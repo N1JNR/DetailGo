@@ -8,8 +8,17 @@ import { buildCheckoutRequest, type MetodoPagamento } from './asaasCheckoutReque
 
 const asaasApiKey = defineSecret('ASAAS_API_KEY');
 
-/** Para onde o navegador volta depois do checkout. Não é prova de pagamento. */
-const RETURN_URL = 'https://detailgo.app/assinatura';
+/**
+ * Para onde o navegador volta depois do checkout. Não é prova de pagamento —
+ * quem confirma é o webhook.
+ *
+ * Apontava para `detailgo.app`, que **não é o domínio do site** (o CNAME do
+ * repositório é `detailgo.com.br`) e onde `/assinatura` devolvia 404. Quem
+ * pagava caía numa página de erro logo depois de pagar. Em sandbox isso passou
+ * despercebido porque o app volta pelo deep link; em produção quem abre é o
+ * navegador.
+ */
+export const RETURN_URL = 'https://detailgo.com.br/assinatura';
 
 export const createAsaasCheckout = onRequest(
   { secrets: [asaasApiKey], cors: true },
