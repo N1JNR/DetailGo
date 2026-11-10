@@ -38,6 +38,7 @@ import { formatUtils } from '@shared/utils/format.utils';
 import { uploadProfilePhoto } from '@shared/services/userPhoto.service';
 import SuccessModal from '@shared/components/SuccessModal';
 import { useAuth, useMeStore } from '@features/auth';
+import { requestAccountDeletion } from '../services/deleteAccount.service';
 
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -75,6 +76,9 @@ export default function ProfileScreen() {
   const [saving, setSaving] = useState(false);
   const [savingPhoto, setSavingPhoto] = useState(false);
   const [checkingConfirm, setCheckingConfirm] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [excluirAberto, setExcluirAberto] = useState(false);
+  const [senhaExclusao, setSenhaExclusao] = useState('');
   const [success, setSuccess] = useState<{ title: string; message: string } | null>(null);
 
   const [profile, setProfile] = useState<UserProfile>({
@@ -417,6 +421,61 @@ export default function ProfileScreen() {
     });
   };
 
+  /**
+   * Exclusão de conta e dados, exigida pelo Google Play de todo app que deixa
+   * criar conta.
+   *
+   * O servidor ainda pode recusar: dono com assinatura viva ou horário marcado
+   * precisa resolver isso antes. Nesse caso o retorno é instrução, não erro —
+   * por isso a mensagem vem do próprio impedimento, já dizendo o que fazer.
+   */
+  /** Fecha o bloco e descarta a senha do estado da tela. */
+  const cancelarExclusao = () => {
+    setExcluirAberto(false);
+    setSenhaExclusao('');
+  };
+
+  const handleDeleteAccount = () => {
+    if (!senhaExclusao) {
+      showError('Digite sua senha para confirmar');
+      return;
+    }
+
+    showConfirm({
+      title: 'Excluir conta',
+      message:
+        'Isto apaga sua conta e seus dados, e não pode ser desfeito.\n\nSeus agendamentos passados continuam no histórico da estética, sem o seu nome.',
+      confirmLabel: 'Excluir',
+      destructive: true,
+      onConfirm: async () => {
+        setExcluindo(true);
+        try {
+          const r = await requestAccountDeletion(senhaExclusao);
+
+          if (r.ok) {
+            showSuccess('Sua conta e seus dados foram apagados.', {
+              title: 'Conta excluída',
+              primaryLabel: 'Ok',
+              onClose: () => signOut(),
+            });
+            return;
+          }
+
+          if ('impedimentos' in r && r.impedimentos.length > 0) {
+            showError(r.impedimentos.map(i => i.mensagem).join('\n\n'), {
+              title: 'Resolva isto antes',
+            });
+            return;
+          }
+
+          showError('message' in r ? r.message : 'Não foi possível excluir a conta agora.');
+        } finally {
+          setExcluindo(false);
+        }
+      },
+    });
+  };
+
   const handleSignOut = () => {
     showConfirm({
       title: 'Sair da conta',
@@ -692,7 +751,56 @@ export default function ProfileScreen() {
                 }
               />
               <ThemeSettingsRow isLight={isLight} onToggle={toggleTheme} />
-              <SettingsRow label="Sair" onPress={handleSignOut} danger last />
+              <SettingsRow label="Sair" onPress={handleSignOut} danger />
+              {!excluirAberto ? (
+                <SettingsRow
+                  testID="excluir-conta"
+                  label="Excluir conta"
+                  onPress={() => setExcluirAberto(true)}
+                  danger
+                  last
+                />
+              ) : (
+                <View style={styles.editBlock}>
+                  {/* A senha é a prova de identidade. O servidor confere o
+                      mesmo pelo auth_time do token — sem ela, um token vazado
+                      apagaria a conta. */}
+                  <ProfileTextInput
+                    label="Senha atual"
+                    value={senhaExclusao}
+                    onChangeText={setSenhaExclusao}
+                    placeholder="Confirme sua senha para excluir"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!excluindo}
+                    floating
+                  />
+                  <View style={styles.editActions}>
+                    <TouchableOpacity
+                      testID="cancelar-exclusao"
+                      style={[styles.actionButton, styles.cancelButton]}
+                      onPress={cancelarExclusao}
+                      disabled={excluindo}
+                    >
+                      <X size={16} color={D.ink} />
+                      <Text style={styles.actionText}>Cancelar</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      testID="excluir-conta"
+                      style={[styles.actionButton, styles.confirmButton]}
+                      onPress={handleDeleteAccount}
+                      disabled={excluindo}
+                    >
+                      {excluindo ? (
+                        <ActivityIndicator size="small" color={D.onPrimary} />
+                      ) : (
+                        <Text style={styles.confirmText}>Excluir conta</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             </View>
 
             <View style={styles.footerSpace} />
@@ -781,19 +889,25 @@ function SettingsRow({
   onPress,
   danger,
   last,
+  disabled,
+  testID,
 }: {
   label: string;
   onPress: () => void;
   danger?: boolean;
   last?: boolean;
+  disabled?: boolean;
+  testID?: string;
 }) {
   const { colors: D } = useAppTheme();
   const styles = useMemo(() => createStyles(D), [D]);
 
   return (
     <TouchableOpacity
-      style={[styles.settingsRow, !last && styles.rowBorder]}
+      testID={testID}
+      style={[styles.settingsRow, !last && styles.rowBorder, disabled && styles.disabled]}
       onPress={onPress}
+      disabled={disabled}
       activeOpacity={0.75}
     >
       <Text style={[styles.settingsLabel, danger && styles.dangerText]}>{label}</Text>
