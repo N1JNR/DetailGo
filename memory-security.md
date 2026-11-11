@@ -23,11 +23,12 @@
 
 ## Security Score History
 
-| Data       | Críticas         | Altas            | Notas                                                                        |
-| ---------- | ---------------- | ---------------- | ---------------------------------------------------------------------------- |
-| 2026-09-02 | -                | 1 MÉDIA, 1 BAIXA | Auditoria do agente: geocodificação aberta, lat/lng sem validação            |
-| 2026-10-14 | -                | -                | Auditoria do agente (#158)                                                   |
-| 2026-10-15 | 1 ALTA, 2 MÉDIAS | —                | Revisão manual das Cloud Functions inteiras; as três corrigidas no mesmo dia |
+| Data       | Críticas         | Altas            | Notas                                                                                         |
+| ---------- | ---------------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| 2026-09-02 | -                | 1 MÉDIA, 1 BAIXA | Auditoria do agente: geocodificação aberta, lat/lng sem validação                             |
+| 2026-10-14 | -                | -                | Auditoria do agente (#158)                                                                    |
+| 2026-10-15 | 1 ALTA, 2 MÉDIAS | —                | Revisão manual das Cloud Functions inteiras; as três corrigidas no mesmo dia                  |
+| 2026-11-11 | -                | 1 MÉDIA          | Auditoria do agente: geocodificação aberta (mitigada por IP); fluxo de deleteAccount validado |
 
 ## Achados corrigidos
 
